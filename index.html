@@ -143,7 +143,7 @@ function render(){
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-b（地区マップ：衛星写真＋圃場ポリゴン編集）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-c（地区マップ：衛星＋ポリゴン・拠点再センター）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -198,7 +198,7 @@ function viewDistrict(){
   const total=counts.reduce((a,b)=>a+b.n,0);
   const chips=counts.map(x=>{const sel=DIST.edit&&DIST.field===x.f.id;return `<button data-distfield="${x.f.id}" style="display:inline-flex;align-items:center;gap:7px;border:2px solid ${sel?fieldColor(x.i):'var(--line)'};background:${sel?'rgba(0,0,0,.05)':'transparent'};border-radius:999px;padding:6px 13px;margin:3px 6px 3px 0;font-weight:700;font-size:12px;cursor:pointer;color:var(--ink)"><span style="width:11px;height:11px;border-radius:50%;background:${fieldColor(x.i)};display:inline-block"></span>${esc(x.f.name)}<span class="mono" style="color:var(--muted)">${x.n}本</span>${x.has?'':' <span class="mono" style="color:var(--danger);font-size:10px">境界なし</span>'}</button>`;}).join('');
   const editBtn=`<button class="act ${DIST.edit?'':'gh'} sm" id="distEditToggle">${DIST.edit?'編集を終了':'境界を編集'}</button>`;
-  const editBar=DIST.edit?`<div class="banner" style="margin-top:8px"><b>編集モード</b>：上のチップで圃場を選び、地図をクリックして頂点を追加（頂点はドラッグで移動）。一周ぶん置いたら「保存」。<div class="controls" style="margin-top:8px"><button class="act gh sm" id="distUndo">1点戻す</button><button class="act gh sm" id="distClear">クリア</button><button class="act sm" id="distSave">保存</button><button class="act gh sm" id="distDel">この圃場の境界を削除</button></div></div>`:'';
+  const editBar=DIST.edit?`<div class="banner" style="margin-top:8px"><b>編集モード</b>：上のチップで圃場を選び、地図をクリックして頂点を追加（頂点はドラッグで移動）。一周ぶん置いたら「保存」。<div class="controls" style="margin-top:8px"><button class="act gh sm" id="distRecenter">地図中心を拠点位置に保存</button><button class="act gh sm" id="distUndo">1点戻す</button><button class="act gh sm" id="distClear">クリア</button><button class="act sm" id="distSave">保存</button><button class="act gh sm" id="distDel">この圃場の境界を削除</button></div></div>`:'';
   return `<div class="card"><h2>${title} ・ 地区マップ</h2>
      <p class="lead">衛星写真の上に各圃場の輪郭を色分け表示します（${S.fields.length}圃場・計${total}本）。${DIST.edit?'':'ポリゴンやチップをクリックでその圃場の詳細マップへ。境界を引くには「境界を編集」。'}</p>
      <div style="margin:4px 0 8px">${editBtn}</div>
@@ -395,6 +395,7 @@ function bind(){
   const dc=el('distClear');if(dc)dc.onclick=distClearWorking;
   const dsv=el('distSave');if(dsv)dsv.onclick=distSave;
   const ddl=el('distDel');if(ddl)ddl.onclick=distDel;
+  const drc=el('distRecenter');if(drc)drc.onclick=async()=>{if(!DIST.map)return;const c=DIST.map.getCenter();const {error}=await sb.from('sites').update({lat:c.lat,lng:c.lng}).eq('id',S.site);if(error){alert(error.message);return;}const s=S.sites.find(x=>x.id===S.site);if(s){s.lat=c.lat;s.lng=c.lng;}drc.textContent='拠点位置を保存しました ✓';};
   const sm=el('saveMeta');if(sm)sm.onclick=async()=>{const {error}=await sb.from('fields').update({shozai:el('m_shozai').value,mrv_status:el('m_mrv').value,rfid_managed:el('m_rfid').checked}).eq('id',S.field);if(error){alert(error.message);return;}await loadSite(S.site);render();};
   document.querySelectorAll('[data-pid]').forEach(inp=>inp.onchange=async()=>{const id=inp.dataset.pid,k=inp.dataset.k;let v=inp.value;if(k==='area_sqm')v=v===''?null:+v;const {error}=await sb.from('parcels').update({[k]:v}).eq('id',id);if(error){alert(error.message);return;}await loadSite(S.site);render();});
   document.querySelectorAll('[data-delp]').forEach(b=>b.onclick=async()=>{if(!confirm('削除しますか？'))return;await sb.from('parcels').delete().eq('id',b.dataset.delp);await loadSite(S.site);render();});
