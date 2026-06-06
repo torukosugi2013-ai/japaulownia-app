@@ -135,15 +135,15 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 
 function render(){
   if(!S.session){renderLogin();return;}
-  const content=S.tab==='jp'?viewJp():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='photos'?viewPhotos():viewDash();
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='photos'?viewPhotos():viewDash();
   const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
-    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0605-c（キャッシュ無効化・閉じたら要ログイン）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-a（地区マップ追加・キャッシュ無効化・閉じたら要ログイン）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -161,7 +161,7 @@ function renderLogin(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
 function viewJp(){
   const withxy=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
   const note=withxy.length?'':'<div class="banner">拠点の緯度経度が未設定です。<b>migrate_拠点座標.sql</b> をSupabaseで実行すると、地図に拠点が表示されます。</div>';
-  return `<div class="card"><h2>全国マップ</h2><p class="lead">拠点のピンをクリックすると概要が出ます。「この拠点を開く」で圃場マップへ。ピンはドラッグで位置を微調整でき、離すと保存されます。</p>
+  return `<div class="card"><h2>全国マップ</h2><p class="lead">拠点のピンをクリックすると概要が出ます。「この拠点を開く」でその地区の全圃場をまとめた地区マップへ。ピンはドラッグで位置を微調整でき、離すと保存されます。</p>
    <div id="jpmap" style="height:64vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
    ${note}</div>`;
 }
@@ -182,7 +182,37 @@ function initJpMap(){
   } else { map.setView([37.5,137.0],5); }
   setTimeout(()=>map.invalidateSize(),140);
 }
-window.openSiteFromMap=async (id)=>{S.site=id;S.field=null;S.entryField=null;await loadSite(id);S.tab='map';render();};
+window.openSiteFromMap=async (id)=>{S.site=id;S.field=null;S.entryField=null;await loadSite(id);S.tab='district';render();};
+
+/* ===== 地区マップ（拠点内の全圃場をまとめて表示） ===== */
+const DISTRICT_PALETTE=['#2f4a32','#c08a2d','#6f8f4e','#9c5b2a','#5b7aa7','#84794a','#a23f3f','#3d6e8c'];
+function viewDistrict(){
+  if(!S.site) return `<div class="card"><h2>地区マップ</h2><p class="lead">上の地区（拠点）を選ぶか、全国マップのピンから開いてください。</p></div>`;
+  const site=S.sites.find(s=>s.id===S.site);
+  const title=esc(site?site.name:'');
+  if(!S.fields.length) return `<div class="card"><h2>${title} ・ 地区マップ</h2><p class="lead">この地区に圃場がありません。</p></div>`;
+  const colorOf={};S.fields.forEach((f,i)=>colorOf[f.id]=DISTRICT_PALETTE[i%DISTRICT_PALETTE.length]);
+  const counts=S.fields.map(f=>({f,n:S.trees.filter(t=>t.field_id===f.id).length}));
+  const total=counts.reduce((a,b)=>a+b.n,0);
+  const chips=counts.map(x=>`<button data-openfield="${x.f.id}" style="display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 13px;margin:3px 6px 3px 0;font-weight:700;font-size:12px;cursor:pointer;color:var(--ink)"><span style="width:11px;height:11px;border-radius:50%;background:${colorOf[x.f.id]};display:inline-block"></span>${esc(x.f.name)}<span class="mono" style="color:var(--muted)">${x.n}本</span></button>`).join('');
+  const hasXY=S.trees.length>0 && S.trees.every(t=>t.x!=null&&t.y!=null);
+  const combined=hasXY?buildDistrictMap(colorOf):'';
+  const tiles=(!hasXY)?(S.trees.length?S.fields.map((f,i)=>`<div class="card"><h2>${esc(f.name)} <span class="mono" style="font-size:12px;color:var(--muted)">${S.trees.filter(t=>t.field_id===f.id).length}本</span></h2>${buildMap(f,S.metric,'D'+i)}</div>`).join(''):`<div class="banner">この地区にはまだ個体データがありません。圃場は登録済みです。</div>`):'';
+  return `<div class="card"><h2>${title} ・ 地区マップ</h2>
+     <p class="lead">この地区の全圃場（${S.fields.length}圃場・計${total}本）をまとめて表示しています。色は圃場ごと。点をクリックで個体の詳細、下のチップで各圃場の詳細マップへ。</p>
+     <div style="margin:6px 0 2px">${chips}</div>
+     ${combined}</div>${tiles}`;
+}
+function buildDistrictMap(colorOf){
+  const trees=S.trees.filter(t=>t.x!=null&&t.y!=null);
+  const xs=trees.map(t=>+t.x),ys=trees.map(t=>+t.y);
+  const xmn=Math.min(...xs),xmx=Math.max(...xs),ymn=Math.min(...ys),ymx=Math.max(...ys);
+  const dw=(xmx-xmn)||1,dh=(ymx-ymn)||1;const pad=28,W=900,H=Math.max(300,Math.round(W*dh/dw)+pad);
+  const pos=t=>[pad+((+t.x-xmn)/dw)*(W-2*pad),pad+((+t.y-ymn)/dh)*(H-2*pad)];
+  const fname=fid=>{const f=S.fields.find(x=>x.id===fid);return f?f.name:'';};
+  const circles=trees.map(t=>{const[cx,cy]=pos(t);return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5.5" fill="${colorOf[t.field_id]||'#888'}" data-id="${t.id}"><title>${esc(fname(t.field_id))} ${esc(t.label||'')}${t.planted_date?' · '+esc(t.planted_date):''}</title></circle>`;}).join('');
+  return `<div class="maparea"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:78vh" preserveAspectRatio="xMidYMid meet">${circles}</svg></div>`;
+}
 
 /* ===== 圃場マップ ===== */
 function viewMap(){
@@ -347,6 +377,7 @@ function bind(){
   if(el('p_files'))bindPhotosImport();
   document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
   document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
+  document.querySelectorAll('[data-openfield]').forEach(b=>b.onclick=()=>{S.field=b.dataset.openfield;S.tab='map';closeDrawer();render();});
   const sm=el('saveMeta');if(sm)sm.onclick=async()=>{const {error}=await sb.from('fields').update({shozai:el('m_shozai').value,mrv_status:el('m_mrv').value,rfid_managed:el('m_rfid').checked}).eq('id',S.field);if(error){alert(error.message);return;}await loadSite(S.site);render();};
   document.querySelectorAll('[data-pid]').forEach(inp=>inp.onchange=async()=>{const id=inp.dataset.pid,k=inp.dataset.k;let v=inp.value;if(k==='area_sqm')v=v===''?null:+v;const {error}=await sb.from('parcels').update({[k]:v}).eq('id',id);if(error){alert(error.message);return;}await loadSite(S.site);render();});
   document.querySelectorAll('[data-delp]').forEach(b=>b.onclick=async()=>{if(!confirm('削除しますか？'))return;await sb.from('parcels').delete().eq('id',b.dataset.delp);await loadSite(S.site);render();});
