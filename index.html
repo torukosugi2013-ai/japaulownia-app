@@ -143,7 +143,7 @@ function render(){
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-d（地区マップ：航空写真ベース・境界トレース）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-e（地区マップ：圃場名ラベル表示）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -239,6 +239,14 @@ function drawDistOverlay(){
       handles.appendChild(h);
     });
   }
+  S.fields.forEach((f,i)=>{
+    if(!(f.boundary&&f.boundary.pts&&f.boundary.pts.length>=3))return;
+    if(DIST.edit&&DIST.field===f.id)return;
+    const pts=f.boundary.pts,cx=pts.reduce((a,p)=>a+p[0],0)/pts.length,cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+    const lab=document.createElement('div');lab.textContent=f.name;
+    lab.style.cssText=`position:absolute;left:${cx*100}%;top:${cy*100}%;transform:translate(-50%,-50%);pointer-events:none;font-family:'Zen Kaku Gothic New',system-ui,sans-serif;font-weight:700;font-size:12px;line-height:1;color:#fff;background:${fieldColor(i)};opacity:.93;padding:3px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.85);white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.55)`;
+    handles.appendChild(lab);
+  });
 }
 function distClientToNorm(e){const svg=el('distsvg');const r=svg.getBoundingClientRect();let x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;return [Math.max(0,Math.min(1,x)),Math.max(0,Math.min(1,y))];}
 function distOnMove(e){if(DIST.drag<0)return;DIST.moved=true;DIST.verts[DIST.drag]=distClientToNorm(e);const wp=el('distwork');if(wp)wp.setAttribute('points',ptStr(DIST.verts));const handles=el('disthandles');const h=handles&&handles.children[DIST.drag];if(h){h.style.left=(DIST.verts[DIST.drag][0]*100)+'%';h.style.top=(DIST.verts[DIST.drag][1]*100)+'%';}}
