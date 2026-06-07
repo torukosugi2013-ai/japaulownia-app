@@ -163,16 +163,17 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],entryField:null,entryDate:new Date().toISOString().slice(0,10)};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
 async function init(){const url=getCfg('jp_sb_url',SUPABASE_URL),key=getCfg('jp_sb_key',SUPABASE_ANON);if(!url||!key){renderSetup();return;}sb=createClient(url,key,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}});const {data}=await sb.auth.getSession();S.session=data.session;sb.auth.onAuthStateChange((_e,s)=>{S.session=s;s?afterLogin():render();});S.session?afterLogin():render();}
 function frame(inner){return `<div class="center"><div class="card auth"><div class="brand" style="margin-bottom:14px"><div class="logo">${LEAF}</div><div><h1 class="mincho" style="font-size:18px;color:var(--forest);margin:0">ジャパロニア</h1><div class="sub">植林CO₂管理 クラウド</div></div></div>${inner}</div></div>`;}
 function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var(--forest)">初回設定</h2><p class="lead" style="font-size:12px;color:var(--muted)">SupabaseのURLとキー（anon/publishable）を貼ってください。この端末に記憶され次回以降は不要です。</p><label class="sub" style="border:0;margin:8px 0 4px">Project URL</label><input id="c_url" placeholder="https://xxxx.supabase.co"><label class="sub" style="border:0;margin:10px 0 4px">anon / publishable キー</label><input id="c_key" placeholder="eyJ... / sb_publishable_..."><button class="act" id="c_save" style="margin-top:12px;width:100%">保存して始める</button>`);el('c_save').onclick=()=>{const u=el('c_url').value.trim(),k=el('c_key').value.trim();if(!u||!k){alert('両方入れてください');return;}localStorage.setItem('jp_sb_url',u);localStorage.setItem('jp_sb_key',k);location.reload();};}
-async function afterLogin(){await loadSites();render();}
+async function afterLogin(){await loadSites();await loadStaff();render();}
+async function loadStaff(){S.staff=((await sb.from('staff').select('*').order('name')).data)||[];}
 async function loadSites(){const {data,error}=await sb.from('sites').select('*').order('name');if(error){alert('読込エラー: '+error.message);return;}S.sites=data||[];if(!S.site&&S.sites.length)S.site=S.sites[0].id;if(S.site)await loadSite(S.site);}
-async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=fids.length?((await sb.from('trees').select('*').in('field_id',fids).limit(100000)).data||[]):[];const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));}
+async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=fids.length?((await sb.from('trees').select('*').in('field_id',fids).limit(100000)).data||[]):[];const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}}
 
 function treeMeas(tid){return S.meas.filter(m=>m.tree_id===tid);}
 function measFor(tid,round){const ms=treeMeas(tid);if(!ms.length)return null;if(round==='latest')return ms[ms.length-1];return ms.find(m=>m.measured_on===round)||null;}
@@ -183,15 +184,15 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 
 function render(){
   if(!S.session){renderLogin();return;}
-  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='photos'?viewPhotos():viewDash();
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewDash();
   const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
-    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-g（ダッシュボード統合・堅牢化）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-i（費用科目・月次推移・担当者マスタ）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -457,14 +458,16 @@ async function runPhotosImport(rows){
 const fmtT=n=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('ja-JP');
 async function loadDash(){
   try{
-  const [fr,tr,mr,er,cr]=await Promise.all([
-    sb.from('fields').select('id,site_id,name,area_sqm').limit(100000),
+  const [fr,tr,mr,er,cr,wr]=await Promise.all([
+    sb.from('fields').select('id,site_id,name,area_sqm,manager,established_on,planted_date').limit(100000),
     sb.from('trees').select('id,field_id').limit(100000),
     sb.from('measurements').select('tree_id,measured_on,co2_kg').limit(1000000),
     sb.from('field_evidence').select('field_id,er_code,status').limit(100000),
     sb.from('er_catalog').select('code,section').limit(2000),
+    sb.from('work_logs').select('field_id,work_date,cost_yen,status,cost_type').limit(100000),
   ]);
-  const fields=fr.data||[],trees=tr.data||[],meas=mr.data||[],ev=er.data||[],cat=cr.data||[];
+  const fields=fr.data||[],trees=tr.data||[],meas=mr.data||[],ev=er.data||[],cat=cr.data||[],wls=wr.data||[];
+  const wcost={},wplan={},cMonth={},cType={};wls.forEach(w=>{const v=+w.cost_yen||0;if(w.status==='planned'){wplan[w.field_id]=(wplan[w.field_id]||0)+v;return;}wcost[w.field_id]=(wcost[w.field_id]||0)+v;if(w.work_date){const ym=String(w.work_date).slice(0,7);cMonth[ym]=(cMonth[ym]||0)+v;}const ct=w.cost_type||'その他';cType[ct]=(cType[ct]||0)+v;});
   const t2f={},tfc={};trees.forEach(t=>{t2f[t.id]=t.field_id;tfc[t.field_id]=(tfc[t.field_id]||0)+1;});
   const mset={},mlatest={},mco2={};
   meas.forEach(m=>{const fid=t2f[m.tree_id];if(!fid)return;(mset[fid]=mset[fid]||new Set()).add(m.tree_id);if(m.measured_on&&(!mlatest[fid]||String(m.measured_on)>mlatest[fid]))mlatest[fid]=String(m.measured_on);if(m.co2_kg!=null)mco2[fid]=(mco2[fid]||0)+Number(m.co2_kg);});
@@ -472,10 +475,10 @@ async function loadDash(){
   const evf={},sec={};
   ev.forEach(e=>{const a=evf[e.field_id]=evf[e.field_id]||{done:0,collecting:0,todo:0,total:0};a.total++;a[e.status]=(a[e.status]||0)+1;const sn=c2s[e.er_code]||'その他';const b=sec[sn]=sec[sn]||{done:0,collecting:0,todo:0,total:0};b.total++;b[e.status]=(b[e.status]||0)+1;});
   const sname={},sidx={};S.sites.forEach((s,i)=>{sname[s.id]=s.name;sidx[s.id]=i;});
-  const F=fields.map(f=>{const e0=evf[f.id]||{done:0,collecting:0,todo:0,total:51};const total=e0.total||51;const measured=mset[f.id]?mset[f.id].size:0;return{site_id:f.site_id,site:sname[f.site_id]||f.site_id,name:f.name,area:f.area_sqm,trees:tfc[f.id]||0,measured,latest:mlatest[f.id]||null,co2:(mco2[f.id]||0)/1000,done:e0.done||0,collecting:e0.collecting||0,todo:e0.todo||0,evtotal:total,pct:((e0.done||0)+(e0.collecting||0)*0.5)/total*100};});
+  const F=fields.map(f=>{const e0=evf[f.id]||{done:0,collecting:0,todo:0,total:51};const total=e0.total||51;const measured=mset[f.id]?mset[f.id].size:0;return{site_id:f.site_id,site:sname[f.site_id]||f.site_id,name:f.name,manager:f.manager||null,established:f.established_on||f.planted_date||null,area:f.area_sqm,trees:tfc[f.id]||0,measured,latest:mlatest[f.id]||null,co2:(mco2[f.id]||0)/1000,cost:wcost[f.id]||0,costPlan:wplan[f.id]||0,done:e0.done||0,collecting:e0.collecting||0,todo:e0.todo||0,evtotal:total,pct:((e0.done||0)+(e0.collecting||0)*0.5)/total*100};});
   F.sort((a,b)=>((sidx[a.site_id]??9)-(sidx[b.site_id]??9))||String(a.name).localeCompare(b.name,'ja'));
   const sections=Object.entries(sec).map(([k,v])=>({section:k,done:v.done,collecting:v.collecting,todo:v.todo,total:v.total})).sort((a,b)=>(parseInt(a.section)||99)-(parseInt(b.section)||99));
-  S.dash={fields:F,sections,at:new Date()};
+  S.dash={fields:F,sections,costMonthly:cMonth,costByType:cType,at:new Date()};
   }catch(e){S.dash={error:String((e&&e.message)||e),fields:[],sections:[],at:new Date()};}
 }
 function viewDash(){
@@ -483,6 +486,7 @@ function viewDash(){
   if(S.dash.error){return `<div class="card"><h2>ダッシュボード</h2><p class="bad">集計エラー：${esc(S.dash.error)}</p><p class="lead">「更新」で再試行できます。</p><button class="act gh sm" id="dashRefresh">更新</button></div>`;}
   const D=S.dash,F=D.fields;
   const tT=F.reduce((a,f)=>a+f.trees,0),tM=F.reduce((a,f)=>a+f.measured,0),tC=F.reduce((a,f)=>a+f.co2,0);
+  const tCost=F.reduce((a,f)=>a+f.cost,0),tPlan=F.reduce((a,f)=>a+f.costPlan,0);
   const eD=F.reduce((a,f)=>a+f.done,0),eC=F.reduce((a,f)=>a+f.collecting,0),eTot=F.reduce((a,f)=>a+f.evtotal,0)||1;
   const evPct=(eD+eC*0.5)/eTot*100;
   const at=D.at.toLocaleString('ja-JP',{hour12:false});
@@ -493,26 +497,117 @@ function viewDash(){
     ['測定済個体',fmtT(tM),'本',`測定率 ${tT?Math.round(tM/tT*100):0}%`],
     ['推定CO₂(記録分)',tC.toFixed(3),'t','co2_kg 記録分のみ'],
     ['証拠整備率',evPct.toFixed(1),'%',`整備済 ${eD}・収集中 ${eC} / ${eTot}`],
+    ['作業費(実績)','¥'+tCost.toLocaleString('ja-JP'),'',tPlan?('予定 ¥'+tPlan.toLocaleString('ja-JP')):'作業費合計'],
   ];
-  const rollup=S.sites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),pc=fs.reduce((a,f)=>a+f.pct,0)/fs.length;
-    return `<tr><td><span class="spill">${esc(s.name)}</span></td><td class="num">${fs.length}</td><td class="num">${fmtT(tr)}</td><td class="num">${fmtT(me)}</td><td class="num">${co.toFixed(3)} t</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${pc}%;background:var(--dmoss)"></i></div><span class="dmuted" style="font-size:12px">${pc.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  const rollup=S.sites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.reduce((a,f)=>a+f.pct,0)/fs.length;
+    return `<tr><td><span class="spill">${esc(s.name)}</span></td><td class="num">${fs.length}</td><td class="num">${fmtT(tr)}</td><td class="num">${fmtT(me)}</td><td class="num">${co.toFixed(3)} t</td><td class="num">${cost?'¥'+cost.toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${pc}%;background:var(--dmoss)"></i></div><span class="dmuted" style="font-size:12px">${pc.toFixed(1)}%</span></div></td></tr>`;}).join('');
   const maxTrees=Math.max(...F.map(f=>f.trees),1);
   const bars=S.sites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0);
     return `<div class="fb-site">${esc(s.name)}　<span class="dmuted" style="font-weight:400">個体 ${fmtT(tr)}・測定済 ${fmtT(me)}</span></div>`+fs.map(f=>{const mW=f.measured/maxTrees*100,rW=(f.trees-f.measured)/maxTrees*100;const val=f.trees===0?`<span class="fb-empty">植樹前</span>`:`<b>${fmtT(f.trees)}</b><small> 本</small><br><small>測定 ${fmtT(f.measured)}（${Math.round(f.measured/f.trees*100)}%）</small>`;
       return `<div class="fb-row"><div class="fb-name" title="${esc(f.name)}">${esc(f.name)}</div><div class="fb-track"><i style="width:${mW}%;background:var(--dfor2)"></i><i style="width:${rW}%;background:#cfe0c4"></i></div><div class="fb-val">${val}</div></div>`;}).join('');}).join('');
   const secs=D.sections.map(s=>{const d=s.done/s.total*100,c=s.collecting/s.total*100,pc=(s.done+s.collecting*0.5)/s.total*100;
     return `<div class="sec-row"><div class="nm">${esc(s.section)}</div><div class="dbar"><i style="width:${d}%;background:var(--dok)"></i><i style="width:${c}%;background:var(--dwarn)"></i></div><div class="pc">${pc.toFixed(0)}% <span class="dmuted">(${s.done}/${s.total})</span></div></div>`;}).join('');
-  const ftab=F.map(f=>{const todoM=f.trees>0&&f.measured===0;return `<tr><td><span class="dmuted" style="font-size:12px">${esc(f.site)}</span></td><td><strong>${esc(f.name)}</strong></td><td class="num">${fmtT(f.area)}</td><td class="num">${fmtT(f.trees)}</td><td class="num">${f.measured?fmtT(f.measured):'<span class="dmuted">0</span>'}</td><td class="dmuted">${f.latest||(todoM?'<span style="color:var(--dwarn)">測定待ち</span>':(f.trees===0?'植樹前':'—'))}</td><td class="num">${f.co2?f.co2.toFixed(3)+' t':'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${f.done/f.evtotal*100}%;background:var(--dok)"></i><i style="width:${f.collecting/f.evtotal*100}%;background:var(--dwarn)"></i></div><span class="dmuted" style="font-size:12px">${f.pct.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  const ctColor={'人件費':'#2e573c','資材費':'#6b8e5a','外注費':'#c8742d','委託費':'#4d80e4','種苗費':'#9b5de5','その他':'#9a9384'};
+  const months=Object.keys(D.costMonthly||{}).sort();
+  const maxM=Math.max(1,...months.map(m=>D.costMonthly[m]));
+  const monthly=months.length?months.map(m=>{const v=D.costMonthly[m];const h=Math.max(2,Math.round(v/maxM*120));return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:30px"><div class="dmuted" style="font-size:9px">${v?'¥'+(v/1000).toFixed(0)+'k':''}</div><div title="${m}：¥${v.toLocaleString('ja-JP')}" style="width:62%;height:${h}px;background:var(--dfor2);border-radius:4px 4px 0 0"></div><div class="dmuted" style="font-size:10px">${m.slice(2)}</div></div>`;}).join(''):'<span class="dmuted">データなし</span>';
+  const types=Object.entries(D.costByType||{}).sort((a,b)=>b[1]-a[1]);
+  const totType=types.reduce((a,b)=>a+b[1],0)||1;
+  const typeRows=types.length?types.map(([t,v])=>`<div class="sec-row" style="grid-template-columns:80px 1fr 100px"><div class="nm">${esc(t)}</div><div class="dbar"><i style="width:${v/totType*100}%;background:${ctColor[t]||'#9a9384'}"></i></div><div class="pc">¥${v.toLocaleString('ja-JP')}</div></div>`).join(''):'<span class="dmuted">データなし</span>';
+  const ftab=F.map(f=>{const todoM=f.trees>0&&f.measured===0;return `<tr><td><span class="dmuted" style="font-size:12px">${esc(f.site)}</span></td><td><strong>${esc(f.name)}</strong>${f.established?`<div class="dmuted" style="font-size:11px">開設 ${f.established}</div>`:''}</td><td class="dmuted" style="font-size:12px">${esc(f.manager||'—')}</td><td class="num">${fmtT(f.area)}</td><td class="num">${fmtT(f.trees)}</td><td class="num">${f.measured?fmtT(f.measured):'<span class="dmuted">0</span>'}</td><td class="dmuted">${f.latest||(todoM?'<span style="color:var(--dwarn)">測定待ち</span>':(f.trees===0?'植樹前':'—'))}</td><td class="num">${f.co2?f.co2.toFixed(3)+' t':'—'}</td><td class="num">${f.cost?'¥'+Number(f.cost).toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${f.done/f.evtotal*100}%;background:var(--dok)"></i><i style="width:${f.collecting/f.evtotal*100}%;background:var(--dwarn)"></i></div><span class="dmuted" style="font-size:12px">${f.pct.toFixed(1)}%</span></div></td></tr>`;}).join('');
   return `<div class="dashx">
    <div class="dhead"><h2>全国圃場 ダッシュボード</h2><span class="en">Japaulownia</span><button class="upd" id="dashRefresh">更新</button></div>
    <div class="dsub">Supabase ライブ集計 ・ 取得 <b>${at}</b> ・ 同一ログインで統合</div>
    <div class="kpi-grid">${kpis.map(([l,v,u,s])=>`<div class="kpi"><div class="lab">${l}</div><div class="val">${v}<small>${u}</small></div><div class="sub2">${esc(s)}</div></div>`).join('')}</div>
-   <div class="dpanel"><div class="dpanel-h"><h3>拠点別サマリー</h3><span class="count">${S.sites.length}拠点 / ${F.length}圃場</span></div><div class="dpanel-b"><table><thead><tr><th>拠点</th><th class="num">圃場</th><th class="num">個体</th><th class="num">測定済</th><th class="num">推定CO₂</th><th>平均証拠整備率</th></tr></thead><tbody>${rollup}</tbody></table></div></div>
+   <div class="dpanel"><div class="dpanel-h"><h3>拠点別サマリー</h3><span class="count">${S.sites.length}拠点 / ${F.length}圃場</span></div><div class="dpanel-b"><table><thead><tr><th>拠点</th><th class="num">圃場</th><th class="num">個体</th><th class="num">測定済</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>平均証拠整備率</th></tr></thead><tbody>${rollup}</tbody></table></div></div>
    <div class="two-col">
      <div class="dpanel"><div class="dpanel-h"><h3>圃場別 個体数と測定状況</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dfor2)"></i>測定済</span><span><i style="background:#cfe0c4"></i>未測定</span><span class="dmuted">バー長＝登録個体数</span></div>${bars}</div></div>
      <div class="dpanel"><div class="dpanel-h"><h3>証拠台帳 セクション別 進捗</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dok)"></i>整備済</span><span><i style="background:var(--dwarn)"></i>収集中</span><span><i style="background:var(--dline)"></i>未着手</span></div>${secs}</div></div>
    </div>
-   <div class="dpanel"><div class="dpanel-h"><h3>圃場一覧</h3><span class="count">${F.length}圃場</span></div><div class="dpanel-b" style="padding:0"><table><thead><tr><th>拠点</th><th>圃場</th><th class="num">面積㎡</th><th class="num">個体</th><th class="num">測定済</th><th>最新測定</th><th class="num">推定CO₂</th><th>証拠整備率</th></tr></thead><tbody>${ftab}</tbody></table></div><div class="dpanel-b" style="border-top:1px solid var(--dline)"><div class="dnote">※ 推定CO₂は measurements.co2_kg の記録分のみの合計（未入力の測定が多いため実吸収量はこれより大きい想定）。証拠整備率＝（整備済＋収集中×0.5）÷項目数。</div></div></div>
+   <div class="two-col">
+     <div class="dpanel"><div class="dpanel-h"><h3>月次 費用推移（実績）</h3></div><div class="dpanel-b"><div style="display:flex;align-items:flex-end;gap:6px;height:152px;padding-top:6px">${monthly}</div></div></div>
+     <div class="dpanel"><div class="dpanel-h"><h3>科目別 費用（実績）</h3></div><div class="dpanel-b">${typeRows}</div></div>
+   </div>
+   <div class="dpanel"><div class="dpanel-h"><h3>圃場一覧</h3><span class="count">${F.length}圃場</span></div><div class="dpanel-b" style="padding:0"><table><thead><tr><th>拠点</th><th>圃場</th><th>管理者</th><th class="num">面積㎡</th><th class="num">個体</th><th class="num">測定済</th><th>最新測定</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>証拠整備率</th></tr></thead><tbody>${ftab}</tbody></table></div><div class="dpanel-b" style="border-top:1px solid var(--dline)"><div class="dnote">※ 推定CO₂は measurements.co2_kg の記録分のみの合計（未入力の測定が多いため実吸収量はこれより大きい想定）。証拠整備率＝（整備済＋収集中×0.5）÷項目数。</div></div></div>
+  </div>`;
+}
+
+/* ===== 作業・費用 ===== */
+function freqDays(fr){fr=fr||'';if(/随時|発見時|発生時|発生|時/.test(fr)&&!/月|週|半年|四半期|年/.test(fr))return null;if(/四半期/.test(fr))return 90;if(/半年/.test(fr))return 180;if(/年1回|年１回/.test(fr))return 365;if(/毎週|週1|週１/.test(fr))return 7;return 30;}
+function wlSopName(c){const s=(S.sops||[]).find(x=>x.code===c);return s?s.name:(c||'');}
+function viewWork(){
+  if(!S.fields.length) return `<div class="card"><p class="lead">この拠点に圃場がありません。</p></div>`;
+  const fieldSeg=seg('wfield',S.fields.map(x=>[x.id,x.name]),S.entryField);
+  const f=S.fields.find(x=>x.id===S.entryField)||S.fields[0];
+  const logs=(S.worklogs||[]).filter(w=>w.field_id===f.id);
+  const today=new Date().toISOString().slice(0,10);
+  const sopRows=(S.sops||[]).map(s=>{
+    const ls=logs.filter(w=>w.sop_code===s.code&&w.status!=='planned').map(w=>w.work_date).filter(Boolean).sort();
+    const last=ls.length?ls[ls.length-1]:null;const d=freqDays(s.frequency);
+    let badge,color,next;
+    if(d==null){badge='随時';color='#9a9384';next='—';}
+    else if(!last){badge='未実施';color='#c0392b';next='今すぐ';}
+    else{const nd=new Date(last);nd.setDate(nd.getDate()+d);next=nd.toISOString().slice(0,10);if(today>next){badge='要実施';color='#c8742d';}else{badge='OK';color='#3a7d52';}}
+    return `<tr><td><strong>${esc(s.name)}</strong></td><td style="font-size:12px;color:var(--muted)">${esc(s.frequency||'')}</td><td>${last||'<span style="color:var(--muted)">なし</span>'}</td><td>${next}</td><td><span style="background:${color};color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span></td></tr>`;
+  }).join('');
+  const logRows=logs.map(w=>`<tr><td>${w.work_date||''}</td><td>${esc(w.sop_code?wlSopName(w.sop_code):(w.category||'—'))}</td><td>${esc(w.worker||'—')}</td><td style="text-align:right">${w.persons??'—'}</td><td style="text-align:right">${w.hours??'—'}</td><td>${esc(w.materials||'—')}</td><td style="text-align:right">${w.cost_yen!=null?'¥'+Number(w.cost_yen).toLocaleString('ja-JP'):'—'}</td><td>${w.status==='planned'?'<span style="background:#c8742d;color:#fff;padding:1px 8px;border-radius:20px;font-size:11px">予定</span>':'<span style="background:#3a7d52;color:#fff;padding:1px 8px;border-radius:20px;font-size:11px">実施</span>'}</td><td><button class="act gh sm" data-delwl="${w.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="9" style="color:var(--muted)">まだ作業記録がありません。下のフォームから追加できます。</td></tr>';
+  const costDone=logs.filter(w=>w.status!=='planned').reduce((a,w)=>a+(+w.cost_yen||0),0);
+  const costPlan=logs.filter(w=>w.status==='planned').reduce((a,w)=>a+(+w.cost_yen||0),0);
+  const sopOpts=`<option value="">（その他／SOP以外）</option>`+(S.sops||[]).map(s=>`<option value="${esc(s.code)}">${esc(s.name)}</option>`).join('');
+  const staffOpts=(S.staff||[]).filter(s=>s.active!==false).map(s=>`<option value="${esc(s.name)}">`).join('');
+  const ctypeOpts=['人件費','資材費','外注費','委託費','種苗費','その他'].map(x=>`<option value="${x}">`).join('');
+  const siteOpts=S.sites.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  const staffRows=(S.staff||[]).map(s=>`<tr><td><strong>${esc(s.name)}</strong></td><td>${esc(s.role||'—')}</td><td>${esc((S.sites.find(x=>x.id===s.site_id)||{}).name||s.site_id||'—')}</td><td>${esc(s.phone||'—')}</td><td>${s.active===false?'<span style="color:var(--muted)">停止</span>':'<span style="color:#3a7d52;font-weight:700">稼働</span>'}</td><td><button class="act gh sm" data-stafftoggle="${s.id}" data-act="${s.active===false?'0':'1'}">${s.active===false?'再開':'停止'}</button> <button class="act gh sm" data-delstaff="${s.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted)">担当者が未登録です。下で追加できます。</td></tr>';
+  return `<div class="card"><h2>作業・費用</h2><p class="lead">圃場を選び、開設・管理者・必須作業・作業履歴・費用を管理します。</p>${fieldSeg}</div>
+  <div class="card"><h2>${esc(f.name)} ・ 基本情報</h2>
+    <div class="controls">
+      <div class="ctl"><span class="lab">開設日</span><input type="date" id="wf_est" value="${f.established_on||''}"></div>
+      <div class="ctl"><span class="lab">植樹日</span><input type="date" id="wf_plant" value="${f.planted_date||''}"></div>
+      <div class="ctl"><span class="lab">管理者</span><input id="wf_mgr" value="${esc(f.manager||'')}" placeholder="担当者・管理者名" style="width:190px"></div>
+      <div class="ctl"><span class="lab">所在</span><input id="wf_shozai" value="${esc(f.shozai||'')}" style="width:240px"></div>
+      <div class="ctl"><span class="lab">面積㎡</span><input id="wf_area" type="number" step="0.1" value="${f.area_sqm??''}" style="width:110px"></div>
+      <div class="ctl"><span class="lab">MRV状態</span><input id="wf_mrv" value="${esc(f.mrv_status||'')}" style="width:170px"></div>
+      <button class="act" id="wf_save" style="align-self:flex-end">基本情報を保存</button>
+    </div>
+    <div class="sub" style="border:0;margin-top:8px">所有者：${esc(f.owner_summary||'—')}　・　登録個体：${S.trees.filter(t=>t.field_id===f.id).length}本</div>
+  </div>
+  <div class="card"><h2>必須作業（SOP）と実施状況</h2>
+    <table><thead><tr><th>作業</th><th>頻度</th><th>最終実施</th><th>次回目安</th><th>状態</th></tr></thead><tbody>${sopRows||'<tr><td colspan="5" style="color:var(--muted)">SOP未登録</td></tr>'}</tbody></table>
+  </div>
+  <div class="card"><h2>作業履歴・費用</h2>
+    <div class="stats"><div class="stat"><div class="k">実績費用</div><div class="v">¥${costDone.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">予定費用</div><div class="v">¥${costPlan.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">記録件数</div><div class="v">${logs.length}<small>件</small></div></div></div>
+    <table><thead><tr><th>日付</th><th>作業</th><th>担当</th><th class="num">人数</th><th class="num">時間</th><th>資材</th><th class="num">費用</th><th>区分</th><th></th></tr></thead><tbody>${logRows}</tbody></table>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+      <h2 style="font-size:14px">作業を追加</h2>
+      <div class="controls">
+        <div class="ctl"><span class="lab">日付</span><input type="date" id="wl_date" value="${today}"></div>
+        <div class="ctl"><span class="lab">作業(SOP)</span><select id="wl_sop">${sopOpts}</select></div>
+        <div class="ctl"><span class="lab">内容(SOP以外)</span><input id="wl_cat" style="width:160px"></div>
+        <div class="ctl"><span class="lab">担当</span><input id="wl_worker" list="stafflist" value="${esc(f.manager||'')}" style="width:130px"></div>
+        <div class="ctl"><span class="lab">科目</span><input id="wl_ctype" list="ctypelist" value="人件費" style="width:100px"></div>
+        <div class="ctl"><span class="lab">人数</span><input type="number" id="wl_persons" step="1" min="0" style="width:70px"></div>
+        <div class="ctl"><span class="lab">時間h</span><input type="number" id="wl_hours" step="0.5" min="0" style="width:80px"></div>
+        <div class="ctl"><span class="lab">資材</span><input id="wl_materials" style="width:150px"></div>
+        <div class="ctl"><span class="lab">費用(円)</span><input type="number" id="wl_cost" step="1" min="0" style="width:120px"></div>
+        <div class="ctl"><span class="lab">区分</span><select id="wl_status"><option value="done">実施</option><option value="planned">予定</option></select></div>
+        <button class="act" id="wl_add" style="align-self:flex-end">作業を記録</button>
+      </div>
+      <div id="wlmsg" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <datalist id="stafflist">${staffOpts}</datalist><datalist id="ctypelist">${ctypeOpts}</datalist>
+  <div class="card"><h2>担当者マスタ</h2><p class="lead">作業の「担当」入力候補になります（稼働中のみ）。</p>
+    <table><thead><tr><th>氏名</th><th>役割</th><th>拠点</th><th>連絡先</th><th>状態</th><th></th></tr></thead><tbody>${staffRows}</tbody></table>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="controls">
+        <div class="ctl"><span class="lab">氏名</span><input id="st_name" style="width:140px"></div>
+        <div class="ctl"><span class="lab">役割</span><input id="st_role" style="width:130px" placeholder="現場主任 など"></div>
+        <div class="ctl"><span class="lab">拠点</span><select id="st_site"><option value="">（全社/未指定）</option>${siteOpts}</select></div>
+        <div class="ctl"><span class="lab">連絡先</span><input id="st_phone" style="width:140px"></div>
+        <button class="act" id="st_add" style="align-self:flex-end">担当者を追加</button>
+      </div>
+      <div id="stmsg" style="margin-top:6px"></div>
+    </div>
   </div>`;
 }
 
@@ -521,7 +616,7 @@ function bind(){
   if(el('jpmap'))initJpMap();
   if(el('distwrap')){initDistrictImg();const dsg=el('distsvg');if(dsg)dsg.onclick=distSvgClick;window.onpointermove=distOnMove;window.onpointerup=distOnUp;}
   if(el('p_files'))bindPhotosImport();
-  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
+  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
   document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
   document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
   const det=el('distEditToggle');if(det)det.onclick=distToggleEdit;
@@ -530,6 +625,12 @@ function bind(){
   const dsv=el('distSave');if(dsv)dsv.onclick=distSave;
   const ddl=el('distDel');if(ddl)ddl.onclick=distDel;
   const dref=el('dashRefresh');if(dref)dref.onclick=()=>{S.dash=null;render();};
+  const wfs=el('wf_save');if(wfs)wfs.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const a=el('wf_area').value;const {error}=await sb.from('fields').update({established_on:el('wf_est').value||null,planted_date:el('wf_plant').value||null,manager:el('wf_mgr').value||null,shozai:el('wf_shozai').value||null,mrv_status:el('wf_mrv').value||null,area_sqm:a===''?null:+a}).eq('id',f.id);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();};
+  const wla=el('wl_add');if(wla)wla.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('wl_date').value;if(!date){el('wlmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const p=el('wl_persons').value,h=el('wl_hours').value,c=el('wl_cost').value;const row={field_id:f.id,work_date:date,sop_code:el('wl_sop').value||null,category:el('wl_cat').value||null,worker:el('wl_worker').value||null,persons:p===''?null:+p,hours:h===''?null:+h,materials:el('wl_materials').value||null,cost_yen:c===''?null:+c,status:el('wl_status').value,cost_type:el('wl_ctype').value||null,created_by:S.session.user.id};const {error}=await sb.from('work_logs').insert(row);if(error){el('wlmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.dash=null;await loadSite(S.site);render();};
+  document.querySelectorAll('[data-delwl]').forEach(b=>b.onclick=async()=>{if(!confirm('この作業記録を削除しますか？'))return;const {error}=await sb.from('work_logs').delete().eq('id',b.dataset.delwl);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();});
+  const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:el('st_site').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
+  document.querySelectorAll('[data-stafftoggle]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('staff').update({active:b.dataset.act!=='1'}).eq('id',b.dataset.stafftoggle);if(error){alert(error.message);return;}await loadStaff();render();});
+  document.querySelectorAll('[data-delstaff]').forEach(b=>b.onclick=async()=>{if(!confirm('この担当者を削除しますか？'))return;const {error}=await sb.from('staff').delete().eq('id',b.dataset.delstaff);if(error){alert(error.message);return;}await loadStaff();render();});
   const sm=el('saveMeta');if(sm)sm.onclick=async()=>{const {error}=await sb.from('fields').update({shozai:el('m_shozai').value,mrv_status:el('m_mrv').value,rfid_managed:el('m_rfid').checked}).eq('id',S.field);if(error){alert(error.message);return;}await loadSite(S.site);render();};
   document.querySelectorAll('[data-pid]').forEach(inp=>inp.onchange=async()=>{const id=inp.dataset.pid,k=inp.dataset.k;let v=inp.value;if(k==='area_sqm')v=v===''?null:+v;const {error}=await sb.from('parcels').update({[k]:v}).eq('id',id);if(error){alert(error.message);return;}await loadSite(S.site);render();});
   document.querySelectorAll('[data-delp]').forEach(b=>b.onclick=async()=>{if(!confirm('削除しますか？'))return;await sb.from('parcels').delete().eq('id',b.dataset.delp);await loadSite(S.site);render();});
