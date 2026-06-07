@@ -186,7 +186,7 @@ function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
 async function afterLogin(){await loadSites();await loadStaff();render();}
 async function loadStaff(){S.staff=((await sb.from('staff').select('*').order('name')).data)||[];}
 async function loadSites(){const {data,error}=await sb.from('sites').select('*').order('name');if(error){alert('読込エラー: '+error.message);return;}S.sites=data||[];if(!S.site&&S.sites.length)S.site=S.sites[0].id;if(S.site)await loadSite(S.site);}
-async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=fids.length?((await sb.from('trees').select('*').in('field_id',fids).limit(100000)).data||[]):[];const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}}
+async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=[];if(fids.length){let _tf=0;for(;;){const _r=await sb.from('trees').select('*').in('field_id',fids).range(_tf,_tf+999);const _d=_r.data||[];S.trees=S.trees.concat(_d);if(_d.length<1000)break;_tf+=1000;}}const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}}
 
 function treeMeas(tid){return S.meas.filter(m=>m.tree_id===tid);}
 function measFor(tid,round){const ms=treeMeas(tid);if(!ms.length)return null;if(round==='latest')return ms[ms.length-1];return ms.find(m=>m.measured_on===round)||null;}
@@ -202,11 +202,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-s を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-t を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-s（拠点プルダウン＋圃場は地図クリック）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-t（集計の取得上限を解消＝測定済を正しく表示）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -478,17 +478,18 @@ async function runPhotosImport(rows){
 
 /* ===== ダッシュボード ===== */
 const fmtT=n=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('ja-JP');
+async function dpAll(table,cols){let all=[],from=0;const page=1000;for(;;){const {data,error}=await sb.from(table).select(cols).range(from,from+page-1);if(error)throw error;all=all.concat(data||[]);if(!data||data.length<page)break;from+=page;}return all;}
 async function loadDash(){
   try{
-  const [fr,tr,mr,er,cr,wr]=await Promise.all([
+  const [fr,er,cr,wr]=await Promise.all([
     sb.from('fields').select('id,site_id,name,area_sqm,manager,established_on,planted_date').limit(100000),
-    sb.from('trees').select('id,field_id').limit(100000),
-    sb.from('measurements').select('tree_id,measured_on,co2_kg').limit(1000000),
     sb.from('field_evidence').select('field_id,er_code,status').limit(100000),
     sb.from('er_catalog').select('code,section').limit(2000),
     sb.from('work_logs').select('field_id,work_date,cost_yen,status,cost_type').limit(100000),
   ]);
-  const fields=fr.data||[],trees=tr.data||[],meas=mr.data||[],ev=er.data||[],cat=cr.data||[],wls=wr.data||[];
+  const trees=await dpAll('trees','id,field_id');
+  const meas=await dpAll('measurements','tree_id,measured_on,co2_kg');
+  const fields=fr.data||[],ev=er.data||[],cat=cr.data||[],wls=wr.data||[];
   const wcost={},wplan={},cMonth={},cType={};wls.forEach(w=>{const v=+w.cost_yen||0;if(w.status==='planned'){wplan[w.field_id]=(wplan[w.field_id]||0)+v;return;}wcost[w.field_id]=(wcost[w.field_id]||0)+v;if(w.work_date){const ym=String(w.work_date).slice(0,7);cMonth[ym]=(cMonth[ym]||0)+v;}const ct=w.cost_type||'その他';cType[ct]=(cType[ct]||0)+v;});
   const t2f={},tfc={};trees.forEach(t=>{t2f[t.id]=t.field_id;tfc[t.field_id]=(tfc[t.field_id]||0)+1;});
   const mset={},mlatest={},mco2={};
