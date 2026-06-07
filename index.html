@@ -198,20 +198,21 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 function render(){
   if(!S.session){renderLogin();return;}
   const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewJp();
-  const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
+  const siteSelOpts=S.sites.map(s=>`<option value="${esc(s.id)}" ${s.id===S.site?'selected':''}>${esc(s.name)}（${S.site===s.id?S.fields.length:'…'}圃場）</option>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-r を表示中 ✅</div>
-    ${S.tab==='jp'?'':`<div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>`}
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-s を表示中 ✅</div>
+    ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-r（ホームの拠点ボックス非表示）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-s（拠点プルダウン＋圃場は地図クリック）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
   document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();});
   document.querySelectorAll('[data-site]').forEach(b=>b.onclick=async()=>{S.site=b.dataset.site;S.field=null;S.entryField=null;await loadSite(S.site);render();});
+  const ssel=el('siteSelect');if(ssel)ssel.onchange=async()=>{S.site=ssel.value;S.field=null;S.entryField=null;await loadSite(S.site);render();};
   const sc=el('scrim');if(sc)sc.onclick=closeDrawer;const lb=el('lb');if(lb)lb.onclick=()=>lb.classList.remove('on');
   bind();
 }
