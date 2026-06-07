@@ -195,15 +195,15 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 
 function render(){
   if(!S.session){renderLogin();return;}
-  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewDash();
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewDash();
   const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
-    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-k（必須作業の定義＝SOPマスタ編集）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-l（カメラ計測：標尺で樹高自動）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -655,11 +655,77 @@ function viewWork(){
   </div>`;
 }
 
+/* ===== カメラ計測（標尺・基準スケール法） ===== */
+const CAM={img:null,file:null,pts:[],fieldId:null,treeId:null};
+function camTreesFor(fid){return (S.trees||[]).filter(t=>t.field_id===fid).sort((a,b)=>String(a.label||a.epc||'').localeCompare(String(b.label||b.epc||''),'ja',{numeric:true}));}
+function viewCam(){
+  if(!S.fields.length) return `<div class="card"><p class="lead">この拠点に圃場がありません。</p></div>`;
+  const fid=(CAM.fieldId&&S.fields.find(f=>f.id===CAM.fieldId))?CAM.fieldId:(S.fields[0]&&S.fields[0].id);CAM.fieldId=fid;
+  const trees=camTreesFor(fid);
+  if(!CAM.treeId||!trees.find(t=>t.id===CAM.treeId))CAM.treeId=trees[0]?trees[0].id:null;
+  const fieldOpts=S.fields.map(f=>`<option value="${f.id}" ${f.id===fid?'selected':''}>${esc(f.name)}</option>`).join('');
+  const treeOpts=trees.map(t=>`<option value="${t.id}" ${t.id===CAM.treeId?'selected':''}>${esc(t.label||t.epc||t.id.slice(0,6))}</option>`).join('')||'<option value="">（個体なし）</option>';
+  const today=new Date().toISOString().slice(0,10);
+  return `<div class="card"><h2>カメラ計測（標尺で樹高自動）</h2>
+    <p class="lead">標尺を苗のそばに立てて撮影し、写真上を <b>①標尺の目盛りA → ②目盛りB → ③苗の根元 → ④苗の先端</b> の順にタップ。A–B間の実長(m)を入れると樹高を自動計算します。太さ(DBH)は別途手入力。高木で標尺に収まらない場合は角度法（今後追加）に切替推奨。</p>
+    <div class="controls">
+      <div class="ctl"><span class="lab">圃場</span><select id="cam_field">${fieldOpts}</select></div>
+      <div class="ctl"><span class="lab">個体(TreeID/記号)</span><select id="cam_tree">${treeOpts}</select></div>
+      <div class="ctl"><span class="lab">計測日</span><input type="date" id="cam_date" value="${today}"></div>
+      <div class="ctl"><span class="lab">標尺A–B間の実長(m)</span><input type="number" id="cam_reflen" step="0.01" value="1.00" style="width:110px"></div>
+    </div>
+    <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <label class="act" style="cursor:pointer">📷 写真を撮る／選ぶ<input id="cam_file" type="file" accept="image/*" capture="environment" style="display:none"></label>
+      <button class="act gh sm" id="cam_undo">1点戻す</button><button class="act gh sm" id="cam_reset">タップやり直し</button></div>
+    <div style="position:relative;max-width:520px"><canvas id="camcanvas" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0d0d0d;touch-action:none"></canvas>
+      <div id="cam_hint" style="position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;padding:3px 8px;border-radius:8px">写真を選ぶと表示されます</div></div>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="k">自動算出 樹高</div><div class="v" id="cam_height">–<small>m</small></div></div>
+      <div class="stat"><div class="k">太さ DBH(cm)</div><div class="v"><input type="number" id="cam_dbh" step="0.1" style="width:90px;font-size:18px" placeholder="手入力"></div></div>
+      <div class="stat"><div class="k">推定CO₂</div><div class="v" id="cam_co2">–<small>kg</small></div></div>
+    </div>
+    <div style="margin-top:12px"><button class="act" id="cam_save">この個体に計測を保存</button> <span id="cam_msg"></span></div>
+  </div>`;
+}
+function camXY(e,c){const r=c.getBoundingClientRect();return [(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];}
+function drawCam(){const c=el('camcanvas');if(!c||!CAM.img)return;c.width=CAM.img.naturalWidth;c.height=CAM.img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(CAM.img,0,0);const cols=['#4d80e4','#4d80e4','#e4572e','#e4572e'],labs=['A','B','根','先'],R=Math.max(7,c.width*0.012),LW=Math.max(2,c.width*0.005);CAM.pts.forEach((p,i)=>{ctx.beginPath();ctx.fillStyle=cols[i];ctx.strokeStyle='#fff';ctx.lineWidth=LW;ctx.arc(p[0],p[1],R,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(16,c.width*0.032)}px sans-serif`;ctx.fillText(labs[i],p[0]+R+4,p[1]-4);});const line=(a,b,col)=>{if(!a||!b)return;ctx.strokeStyle=col;ctx.lineWidth=LW;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};line(CAM.pts[0],CAM.pts[1],'#4d80e4');line(CAM.pts[2],CAM.pts[3],'#e4572e');}
+function camHeight(){if(CAM.pts.length<4)return null;const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);const refPx=d(CAM.pts[0],CAM.pts[1]),treePx=d(CAM.pts[2],CAM.pts[3]),refLen=parseFloat((el('cam_reflen')||{}).value)||0;if(refPx<=0||!refLen)return null;return refLen*treePx/refPx;}
+function camUpdate(){const h=camHeight();const hp=el('cam_height');if(hp)hp.innerHTML=(h!=null?h.toFixed(2):'–')+'<small>m</small>';const dbh=(el('cam_dbh')||{}).value;const co=co2({height_m:h,dbh_cm:dbh});const cp=el('cam_co2');if(cp)cp.innerHTML=(co?fmt(co.kg,2):'–')+'<small>kg</small>';const hint=el('cam_hint');if(hint)hint.textContent=!CAM.img?'写真を選ぶと表示されます':(CAM.pts.length<4?`タップ ${CAM.pts.length}/4：${['①標尺A','②標尺B','③苗の根元','④苗の先端'][CAM.pts.length]||''}`:(h!=null?`樹高 ${h.toFixed(2)}m`:'A–B実長を入力'));}
+async function camSave(){const msg=el('cam_msg'),set=h=>{if(msg)msg.innerHTML=h;};
+  if(!CAM.treeId){set('<span class="bad">個体を選んでください。</span>');return;}
+  if(!CAM.file){set('<span class="bad">写真を撮影／選択してください。</span>');return;}
+  const date=el('cam_date').value;if(!date){set('<span class="bad">計測日を入れてください。</span>');return;}
+  const h=camHeight(),dbhv=el('cam_dbh').value;set('<span class="lead">保存中…</span>');
+  const path=`${CAM.treeId}/${Date.now()}-cam.jpg`;
+  const up=await sb.storage.from('tree-photos').upload(path,CAM.file);
+  if(up.error){set('<span class="bad">写真アップロード失敗：'+esc(up.error.message)+'</span>');return;}
+  await sb.from('tree_photos').insert({tree_id:CAM.treeId,taken_on:date,storage_path:path,caption:'カメラ計測',created_by:S.session.user.id});
+  const m={tree_id:CAM.treeId,measured_on:date,height_m:h!=null?+h.toFixed(3):null,dbh_cm:dbhv===''?null:+dbhv,root_d_cm:null,photo_path:path};
+  const c=co2(m);m.co2_kg=c?c.kg:null;m.estimated=c?c.est:false;m.created_by=S.session.user.id;
+  await sb.from('measurements').delete().eq('tree_id',CAM.treeId).eq('measured_on',date);
+  const {error}=await sb.from('measurements').insert(m);
+  if(error){set('<span class="bad">計測保存失敗：'+esc(error.message)+'</span>');return;}
+  S.dash=null;await loadSite(S.site);
+  set('<span class="ok">保存しました（樹高 '+(h!=null?h.toFixed(2)+'m':'—')+'／DBH '+(dbhv||'—')+'cm）。続けて別の個体も計測できます。</span>');
+  CAM.file=null;CAM.img=null;CAM.pts=[];const c2=el('camcanvas');if(c2){const cx=c2.getContext('2d');cx&&cx.clearRect(0,0,c2.width,c2.height);}camUpdate();}
+function initCam(){const c=el('camcanvas');if(!c)return;
+  const ff=el('cam_field');if(ff)ff.onchange=()=>{CAM.fieldId=ff.value;CAM.treeId=null;render();};
+  const tf=el('cam_tree');if(tf)tf.onchange=()=>{CAM.treeId=tf.value;};
+  const cf=el('cam_file');if(cf)cf.onchange=e=>{const fl=e.target.files[0];if(!fl)return;CAM.file=fl;const img=new Image();img.onload=()=>{CAM.img=img;CAM.pts=[];drawCam();camUpdate();};img.src=URL.createObjectURL(fl);};
+  c.onpointerdown=e=>{if(!CAM.img||CAM.pts.length>=4)return;e.preventDefault();CAM.pts.push(camXY(e,c));drawCam();camUpdate();};
+  const un=el('cam_undo');if(un)un.onclick=()=>{CAM.pts.pop();drawCam();camUpdate();};
+  const rs=el('cam_reset');if(rs)rs.onclick=()=>{CAM.pts=[];drawCam();camUpdate();};
+  const rl=el('cam_reflen');if(rl)rl.oninput=camUpdate;
+  const db=el('cam_dbh');if(db)db.oninput=camUpdate;
+  const sv=el('cam_save');if(sv)sv.onclick=camSave;
+  if(CAM.img)drawCam();camUpdate();}
+
 /* ===== イベント ===== */
 function bind(){
   if(el('jpmap'))initJpMap();
   if(el('distwrap')){initDistrictImg();const dsg=el('distsvg');if(dsg)dsg.onclick=distSvgClick;window.onpointermove=distOnMove;window.onpointerup=distOnUp;}
   if(el('p_files'))bindPhotosImport();
+  if(el('camcanvas'))initCam();
   document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
   document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
   document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
