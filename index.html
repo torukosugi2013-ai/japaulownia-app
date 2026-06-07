@@ -202,11 +202,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-q を表示中 ✅</div>
-    <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-r を表示中 ✅</div>
+    ${S.tab==='jp'?'':`<div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-q（概況サマリー化・常時吹き出し）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-r（ホームの拠点ボックス非表示）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
