@@ -203,7 +203,7 @@ function render(){
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-l（カメラ計測：標尺で樹高自動）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-m（カメラ計測：撮影改善）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -675,7 +675,8 @@ function viewCam(){
       <div class="ctl"><span class="lab">標尺A–B間の実長(m)</span><input type="number" id="cam_reflen" step="0.01" value="1.00" style="width:110px"></div>
     </div>
     <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <label class="act" style="cursor:pointer">📷 写真を撮る／選ぶ<input id="cam_file" type="file" accept="image/*" capture="environment" style="display:none"></label>
+      <label class="act" style="cursor:pointer">📷 撮影<input id="cam_file" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      <label class="act gh" style="cursor:pointer">🖼 画像を選ぶ<input id="cam_file2" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label>
       <button class="act gh sm" id="cam_undo">1点戻す</button><button class="act gh sm" id="cam_reset">タップやり直し</button></div>
     <div style="position:relative;max-width:520px"><canvas id="camcanvas" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0d0d0d;touch-action:none"></canvas>
       <div id="cam_hint" style="position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;padding:3px 8px;border-radius:8px">写真を選ぶと表示されます</div></div>
@@ -688,7 +689,8 @@ function viewCam(){
   </div>`;
 }
 function camXY(e,c){const r=c.getBoundingClientRect();return [(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];}
-function drawCam(){const c=el('camcanvas');if(!c||!CAM.img)return;c.width=CAM.img.naturalWidth;c.height=CAM.img.naturalHeight;const ctx=c.getContext('2d');ctx.drawImage(CAM.img,0,0);const cols=['#4d80e4','#4d80e4','#e4572e','#e4572e'],labs=['A','B','根','先'],R=Math.max(7,c.width*0.012),LW=Math.max(2,c.width*0.005);CAM.pts.forEach((p,i)=>{ctx.beginPath();ctx.fillStyle=cols[i];ctx.strokeStyle='#fff';ctx.lineWidth=LW;ctx.arc(p[0],p[1],R,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(16,c.width*0.032)}px sans-serif`;ctx.fillText(labs[i],p[0]+R+4,p[1]-4);});const line=(a,b,col)=>{if(!a||!b)return;ctx.strokeStyle=col;ctx.lineWidth=LW;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};line(CAM.pts[0],CAM.pts[1],'#4d80e4');line(CAM.pts[2],CAM.pts[3],'#e4572e');}
+function camFit(){const c=el('camcanvas');if(!c||!CAM.img)return;const m=1600,iw=CAM.img.naturalWidth,ih=CAM.img.naturalHeight,s=Math.min(1,m/Math.max(iw,ih));c.width=Math.round(iw*s);c.height=Math.round(ih*s);}
+function drawCam(){const c=el('camcanvas');if(!c||!CAM.img)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(CAM.img,0,0,c.width,c.height);const cols=['#4d80e4','#4d80e4','#e4572e','#e4572e'],labs=['A','B','根','先'],R=Math.max(7,c.width*0.012),LW=Math.max(2,c.width*0.005);CAM.pts.forEach((p,i)=>{ctx.beginPath();ctx.fillStyle=cols[i];ctx.strokeStyle='#fff';ctx.lineWidth=LW;ctx.arc(p[0],p[1],R,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(16,c.width*0.032)}px sans-serif`;ctx.fillText(labs[i],p[0]+R+4,p[1]-4);});const line=(a,b,col)=>{if(!a||!b)return;ctx.strokeStyle=col;ctx.lineWidth=LW;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};line(CAM.pts[0],CAM.pts[1],'#4d80e4');line(CAM.pts[2],CAM.pts[3],'#e4572e');}
 function camHeight(){if(CAM.pts.length<4)return null;const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);const refPx=d(CAM.pts[0],CAM.pts[1]),treePx=d(CAM.pts[2],CAM.pts[3]),refLen=parseFloat((el('cam_reflen')||{}).value)||0;if(refPx<=0||!refLen)return null;return refLen*treePx/refPx;}
 function camUpdate(){const h=camHeight();const hp=el('cam_height');if(hp)hp.innerHTML=(h!=null?h.toFixed(2):'–')+'<small>m</small>';const dbh=(el('cam_dbh')||{}).value;const co=co2({height_m:h,dbh_cm:dbh});const cp=el('cam_co2');if(cp)cp.innerHTML=(co?fmt(co.kg,2):'–')+'<small>kg</small>';const hint=el('cam_hint');if(hint)hint.textContent=!CAM.img?'写真を選ぶと表示されます':(CAM.pts.length<4?`タップ ${CAM.pts.length}/4：${['①標尺A','②標尺B','③苗の根元','④苗の先端'][CAM.pts.length]||''}`:(h!=null?`樹高 ${h.toFixed(2)}m`:'A–B実長を入力'));}
 async function camSave(){const msg=el('cam_msg'),set=h=>{if(msg)msg.innerHTML=h;};
@@ -711,14 +713,16 @@ async function camSave(){const msg=el('cam_msg'),set=h=>{if(msg)msg.innerHTML=h;
 function initCam(){const c=el('camcanvas');if(!c)return;
   const ff=el('cam_field');if(ff)ff.onchange=()=>{CAM.fieldId=ff.value;CAM.treeId=null;render();};
   const tf=el('cam_tree');if(tf)tf.onchange=()=>{CAM.treeId=tf.value;};
-  const cf=el('cam_file');if(cf)cf.onchange=e=>{const fl=e.target.files[0];if(!fl)return;CAM.file=fl;const img=new Image();img.onload=()=>{CAM.img=img;CAM.pts=[];drawCam();camUpdate();};img.src=URL.createObjectURL(fl);};
+  const loadF=fl=>{if(!fl)return;CAM.file=fl;const img=new Image();img.onload=()=>{CAM.img=img;CAM.pts=[];camFit();drawCam();camUpdate();};img.onerror=()=>{const h=el('cam_hint');if(h)h.textContent='画像を表示できませんでした。別の写真でお試しください。';};img.src=URL.createObjectURL(fl);};
+  const cf=el('cam_file');if(cf)cf.onchange=e=>loadF(e.target.files[0]);
+  const cf2=el('cam_file2');if(cf2)cf2.onchange=e=>loadF(e.target.files[0]);
   c.onpointerdown=e=>{if(!CAM.img||CAM.pts.length>=4)return;e.preventDefault();CAM.pts.push(camXY(e,c));drawCam();camUpdate();};
   const un=el('cam_undo');if(un)un.onclick=()=>{CAM.pts.pop();drawCam();camUpdate();};
   const rs=el('cam_reset');if(rs)rs.onclick=()=>{CAM.pts=[];drawCam();camUpdate();};
   const rl=el('cam_reflen');if(rl)rl.oninput=camUpdate;
   const db=el('cam_dbh');if(db)db.oninput=camUpdate;
   const sv=el('cam_save');if(sv)sv.onclick=camSave;
-  if(CAM.img)drawCam();camUpdate();}
+  if(CAM.img){camFit();drawCam();}camUpdate();}
 
 /* ===== イベント ===== */
 function bind(){
