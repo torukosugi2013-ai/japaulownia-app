@@ -152,6 +152,8 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px;paddi
 .caldnum{font-size:11px;color:var(--muted);font-weight:700;line-height:1}
 .calchip{font-size:10px;border-radius:4px;padding:1px 4px;margin-top:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:default}
 @media(max-width:720px){.calcell{min-height:54px}.calchip{font-size:9px}}
+.leaflet-tooltip.jp-tip{background:#fff;border:1px solid #2f4a32;border-radius:9px;font-size:11px;line-height:1.4;padding:4px 8px;box-shadow:0 2px 6px rgba(0,0,0,.28);color:#1f2a1f;font-weight:500}
+.leaflet-tooltip.jp-tip b{color:#2f4a32}
 </style>
 </head>
 <body>
@@ -200,11 +202,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-p を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-q を表示中 ✅</div>
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-p（全国マップ＋ダッシュボード統合・ピン吹き出し）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-q（概況サマリー化・常時吹き出し）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -225,7 +227,7 @@ function viewJp(){
   const mapCard=`<div class="card"><h2>全国マップ・概況</h2><p class="lead">ピンをクリックすると、その拠点の概要（圃場数・個体・測定率・CO₂・作業費・証拠整備率）が吹き出しで表示されます。「この拠点を開く」で地区マップへ。ピンはドラッグで微調整でき、離すと保存されます。下に全国の集計サマリーを表示します。</p>
    <div id="jpmap" style="height:46vh;min-height:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
    ${note}</div>`;
-  return mapCard + viewDash();
+  return mapCard + viewDash(true);
 }
 function initJpMap(){
   const box=el('jpmap'); if(!box||typeof L==='undefined')return;
@@ -237,10 +239,12 @@ function initJpMap(){
     const icon=L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#2f4a32;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[18,18],iconAnchor:[9,18]});
     pts.forEach(s=>{
       const m=L.marker([s.lat,s.lng],{draggable:true,icon}).addTo(map);
-      let info='<div style="margin-top:4px;font-size:12px;color:#777">概況を集計中…</div>';
-      if(D&&D.fields){const fs=D.fields.filter(f=>f.site_id===s.id);
-        const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.length?fs.reduce((a,f)=>a+f.pct,0)/fs.length:0;
-        info=`<div style="margin-top:5px;font-size:12px;line-height:1.7"><b>圃場</b> ${fs.length}　<b>個体</b> ${fmtT(tr)}本（測定 ${tr?Math.round(me/tr*100):0}%）<br><b>推定CO₂</b> ${co.toFixed(3)} t<br><b>作業費</b> ${cost?'¥'+Number(cost).toLocaleString('ja-JP'):'—'}<br><b>証拠整備率</b> ${pc.toFixed(1)}%</div>`;}
+      const fs=(D&&D.fields)?D.fields.filter(f=>f.site_id===s.id):[];
+      const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.length?fs.reduce((a,f)=>a+f.pct,0)/fs.length:0;
+      const short=s.name.replace(/（.*/,'');
+      const tip=(D&&D.fields)?`<b>${esc(short)}</b><br>個体 ${fmtT(tr)}本・CO₂ ${co.toFixed(2)}t`:`<b>${esc(short)}</b>`;
+      m.bindTooltip(tip,{permanent:true,direction:'top',offset:[0,-16],opacity:0.96,className:'jp-tip'});
+      const info=(D&&D.fields)?`<div style="margin-top:5px;font-size:12px;line-height:1.7"><b>圃場</b> ${fs.length}　<b>個体</b> ${fmtT(tr)}本（測定 ${tr?Math.round(me/tr*100):0}%）<br><b>推定CO₂</b> ${co.toFixed(3)} t<br><b>作業費</b> ${cost?'¥'+Number(cost).toLocaleString('ja-JP'):'—'}<br><b>証拠整備率</b> ${pc.toFixed(1)}%</div>`:'<div style="margin-top:4px;font-size:12px;color:#777">概況を集計中…</div>';
       m.bindPopup(`<div style="min-width:190px"><b style="font-size:14px">${esc(s.name)}</b>${info}<button onclick="openSiteFromMap('${esc(s.id)}')" style="margin-top:8px;background:#2f4a32;color:#fff;border:0;border-radius:8px;padding:7px 10px;font-weight:700;cursor:pointer;width:100%">この拠点を開く</button></div>`);
       m.on('dragend',async e=>{const ll=e.target.getLatLng();s.lat=ll.lat;s.lng=ll.lng;await sb.from('sites').update({lat:ll.lat,lng:ll.lng}).eq('id',s.id);});
     });
@@ -498,8 +502,8 @@ async function loadDash(){
   S.dash={fields:F,sections,costMonthly:cMonth,costByType:cType,at:new Date()};
   }catch(e){S.dash={error:String((e&&e.message)||e),fields:[],sections:[],at:new Date()};}
 }
-function viewDash(){
-  if(!S.dash){loadDash().then(()=>render()).catch(()=>render());return `<div class="card"><p class="lead">ダッシュボードを集計中…</p></div>`;}
+function viewDash(summaryOnly){
+  if(!S.dash){loadDash().then(()=>render()).catch(()=>render());return `<div class="card"><p class="lead">概況を集計中…</p></div>`;}
   if(S.dash.error){return `<div class="card"><h2>ダッシュボード</h2><p class="bad">集計エラー：${esc(S.dash.error)}</p><p class="lead">「更新」で再試行できます。</p><button class="act gh sm" id="dashRefresh">更新</button></div>`;}
   const D=S.dash,F=D.fields;
   const tT=F.reduce((a,f)=>a+f.trees,0),tM=F.reduce((a,f)=>a+f.measured,0),tC=F.reduce((a,f)=>a+f.co2,0);
@@ -537,15 +541,15 @@ function viewDash(){
    <div class="dsub">Supabase ライブ集計 ・ 取得 <b>${at}</b> ・ 同一ログインで統合</div>
    <div class="kpi-grid">${kpis.map(([l,v,u,s])=>`<div class="kpi"><div class="lab">${l}</div><div class="val">${v}<small>${u}</small></div><div class="sub2">${esc(s)}</div></div>`).join('')}</div>
    <div class="dpanel"><div class="dpanel-h"><h3>拠点別サマリー</h3><span class="count">${S.sites.length}拠点 / ${F.length}圃場</span></div><div class="dpanel-b"><table><thead><tr><th>拠点</th><th class="num">圃場</th><th class="num">個体</th><th class="num">測定済</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>平均証拠整備率</th></tr></thead><tbody>${rollup}</tbody></table></div></div>
-   <div class="two-col">
+   ${summaryOnly?'':`<div class="two-col">
      <div class="dpanel"><div class="dpanel-h"><h3>圃場別 個体数と測定状況</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dfor2)"></i>測定済</span><span><i style="background:#cfe0c4"></i>未測定</span><span class="dmuted">バー長＝登録個体数</span></div>${bars}</div></div>
      <div class="dpanel"><div class="dpanel-h"><h3>証拠台帳 セクション別 進捗</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dok)"></i>整備済</span><span><i style="background:var(--dwarn)"></i>収集中</span><span><i style="background:var(--dline)"></i>未着手</span></div>${secs}</div></div>
-   </div>
+   </div>`}
    <div class="two-col">
      <div class="dpanel"><div class="dpanel-h"><h3>月次 費用推移（実績）</h3></div><div class="dpanel-b"><div style="display:flex;align-items:flex-end;gap:6px;height:152px;padding-top:6px">${monthly}</div></div></div>
      <div class="dpanel"><div class="dpanel-h"><h3>科目別 費用（実績）</h3></div><div class="dpanel-b">${typeRows}</div></div>
    </div>
-   <div class="dpanel"><div class="dpanel-h"><h3>圃場一覧</h3><span class="count">${F.length}圃場</span></div><div class="dpanel-b" style="padding:0"><table><thead><tr><th>拠点</th><th>圃場</th><th>管理者</th><th class="num">面積㎡</th><th class="num">個体</th><th class="num">測定済</th><th>最新測定</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>証拠整備率</th></tr></thead><tbody>${ftab}</tbody></table></div><div class="dpanel-b" style="border-top:1px solid var(--dline)"><div class="dnote">※ 推定CO₂は measurements.co2_kg の記録分のみの合計（未入力の測定が多いため実吸収量はこれより大きい想定）。証拠整備率＝（整備済＋収集中×0.5）÷項目数。</div></div></div>
+   ${summaryOnly?`<div class="dpanel"><div class="dpanel-h"><h3>証拠台帳 セクション別 進捗</h3><span class="count">全国</span></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dok)"></i>整備済</span><span><i style="background:var(--dwarn)"></i>収集中</span><span><i style="background:var(--dline)"></i>未着手</span></div>${secs}</div></div>`:`<div class="dpanel"><div class="dpanel-h"><h3>圃場一覧</h3><span class="count">${F.length}圃場</span></div><div class="dpanel-b" style="padding:0"><table><thead><tr><th>拠点</th><th>圃場</th><th>管理者</th><th class="num">面積㎡</th><th class="num">個体</th><th class="num">測定済</th><th>最新測定</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>証拠整備率</th></tr></thead><tbody>${ftab}</tbody></table></div><div class="dpanel-b" style="border-top:1px solid var(--dline)"><div class="dnote">※ 推定CO₂は measurements.co2_kg の記録分のみの合計（未入力の測定が多いため実吸収量はこれより大きい想定）。証拠整備率＝（整備済＋収集中×0.5）÷項目数。</div></div></div>`}
   </div>`;
 }
 
