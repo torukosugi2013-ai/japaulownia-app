@@ -203,7 +203,7 @@ function render(){
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-m（カメラ計測：撮影改善）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-n（カメラ計測：スマホUI修正）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -668,16 +668,20 @@ function viewCam(){
   const today=new Date().toISOString().slice(0,10);
   return `<div class="card"><h2>カメラ計測（標尺で樹高自動）</h2>
     <p class="lead">標尺を苗のそばに立てて撮影し、写真上を <b>①標尺の目盛りA → ②目盛りB → ③苗の根元 → ④苗の先端</b> の順にタップ。A–B間の実長(m)を入れると樹高を自動計算します。太さ(DBH)は別途手入力。高木で標尺に収まらない場合は角度法（今後追加）に切替推奨。</p>
-    <div class="controls">
-      <div class="ctl"><span class="lab">圃場</span><select id="cam_field">${fieldOpts}</select></div>
-      <div class="ctl"><span class="lab">個体(TreeID/記号)</span><select id="cam_tree">${treeOpts}</select></div>
-      <div class="ctl"><span class="lab">計測日</span><input type="date" id="cam_date" value="${today}"></div>
-      <div class="ctl"><span class="lab">標尺A–B間の実長(m)</span><input type="number" id="cam_reflen" step="0.01" value="1.00" style="width:110px"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:520px">
+      <div><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">圃場</div><select id="cam_field" style="width:100%">${fieldOpts}</select></div>
+      <div><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">個体(TreeID/記号)</div><select id="cam_tree" style="width:100%">${treeOpts}</select></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">計測日</div><input type="date" id="cam_date" value="${today}" style="width:100%"></div>
+        <div style="flex:1;min-width:140px"><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">標尺A–B間の実長(m)</div><input type="number" id="cam_reflen" step="0.01" value="1.00" style="width:100%"></div>
+      </div>
     </div>
     <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <label class="act" style="cursor:pointer">📷 撮影<input id="cam_file" type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0"></label>
-      <label class="act gh" style="cursor:pointer">🖼 画像を選ぶ<input id="cam_file2" type="file" accept="image/*" style="position:absolute;width:1px;height:1px;opacity:0"></label>
-      <button class="act gh sm" id="cam_undo">1点戻す</button><button class="act gh sm" id="cam_reset">タップやり直し</button></div>
+      <button type="button" class="act" id="cam_shoot">📷 撮影</button>
+      <button type="button" class="act gh" id="cam_pick">🖼 画像を選ぶ</button>
+      <button type="button" class="act gh sm" id="cam_undo">1点戻す</button><button type="button" class="act gh sm" id="cam_reset">タップやり直し</button>
+      <input id="cam_file" type="file" accept="image/*" capture="environment" style="display:none">
+      <input id="cam_file2" type="file" accept="image/*" style="display:none"></div>
     <div style="position:relative;max-width:520px"><canvas id="camcanvas" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0d0d0d;touch-action:none"></canvas>
       <div id="cam_hint" style="position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;padding:3px 8px;border-radius:8px">写真を選ぶと表示されます</div></div>
     <div class="stats" style="margin-top:12px">
@@ -716,6 +720,8 @@ function initCam(){const c=el('camcanvas');if(!c)return;
   const loadF=fl=>{if(!fl)return;CAM.file=fl;const img=new Image();img.onload=()=>{CAM.img=img;CAM.pts=[];camFit();drawCam();camUpdate();};img.onerror=()=>{const h=el('cam_hint');if(h)h.textContent='画像を表示できませんでした。別の写真でお試しください。';};img.src=URL.createObjectURL(fl);};
   const cf=el('cam_file');if(cf)cf.onchange=e=>loadF(e.target.files[0]);
   const cf2=el('cam_file2');if(cf2)cf2.onchange=e=>loadF(e.target.files[0]);
+  const shoot=el('cam_shoot');if(shoot)shoot.onclick=()=>{const i=el('cam_file');if(i)i.click();};
+  const pick=el('cam_pick');if(pick)pick.onclick=()=>{const i=el('cam_file2');if(i)i.click();};
   c.onpointerdown=e=>{if(!CAM.img||CAM.pts.length>=4)return;e.preventDefault();CAM.pts.push(camXY(e,c));drawCam();camUpdate();};
   const un=el('cam_undo');if(un)un.onclick=()=>{CAM.pts.pop();drawCam();camUpdate();};
   const rs=el('cam_reset');if(rs)rs.onclick=()=>{CAM.pts=[];drawCam();camUpdate();};
