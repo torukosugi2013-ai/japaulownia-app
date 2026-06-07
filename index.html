@@ -195,15 +195,16 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 
 function render(){
   if(!S.session){renderLogin();return;}
-  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewDash();
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewJp();
   const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-p を表示中 ✅</div>
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
-    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-n（カメラ計測：スマホUI修正）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-p（全国マップ＋ダッシュボード統合・ピン吹き出し）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -221,21 +222,26 @@ function renderLogin(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
 function viewJp(){
   const withxy=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
   const note=withxy.length?'':'<div class="banner">拠点の緯度経度が未設定です。<b>migrate_拠点座標.sql</b> をSupabaseで実行すると、地図に拠点が表示されます。</div>';
-  return `<div class="card"><h2>全国マップ</h2><p class="lead">拠点のピンをクリックすると概要が出ます。「この拠点を開く」でその地区の全圃場をまとめた地区マップへ。ピンはドラッグで位置を微調整でき、離すと保存されます。</p>
-   <div id="jpmap" style="height:64vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
+  const mapCard=`<div class="card"><h2>全国マップ・概況</h2><p class="lead">ピンをクリックすると、その拠点の概要（圃場数・個体・測定率・CO₂・作業費・証拠整備率）が吹き出しで表示されます。「この拠点を開く」で地区マップへ。ピンはドラッグで微調整でき、離すと保存されます。下に全国の集計サマリーを表示します。</p>
+   <div id="jpmap" style="height:46vh;min-height:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
    ${note}</div>`;
+  return mapCard + viewDash();
 }
 function initJpMap(){
   const box=el('jpmap'); if(!box||typeof L==='undefined')return;
   const map=L.map('jpmap');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
   const pts=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
+  const D=S.dash;
   if(pts.length){
     const icon=L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#2f4a32;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[18,18],iconAnchor:[9,18]});
     pts.forEach(s=>{
       const m=L.marker([s.lat,s.lng],{draggable:true,icon}).addTo(map);
-      const fcount=(S.site===s.id)?` ・ ${S.fields.length}圃場`:'';
-      m.bindPopup(`<b>${esc(s.name)}</b>${fcount}<br><button onclick="openSiteFromMap('${esc(s.id)}')" style="margin-top:6px;background:#2f4a32;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer">この拠点を開く</button>`);
+      let info='<div style="margin-top:4px;font-size:12px;color:#777">概況を集計中…</div>';
+      if(D&&D.fields){const fs=D.fields.filter(f=>f.site_id===s.id);
+        const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.length?fs.reduce((a,f)=>a+f.pct,0)/fs.length:0;
+        info=`<div style="margin-top:5px;font-size:12px;line-height:1.7"><b>圃場</b> ${fs.length}　<b>個体</b> ${fmtT(tr)}本（測定 ${tr?Math.round(me/tr*100):0}%）<br><b>推定CO₂</b> ${co.toFixed(3)} t<br><b>作業費</b> ${cost?'¥'+Number(cost).toLocaleString('ja-JP'):'—'}<br><b>証拠整備率</b> ${pc.toFixed(1)}%</div>`;}
+      m.bindPopup(`<div style="min-width:190px"><b style="font-size:14px">${esc(s.name)}</b>${info}<button onclick="openSiteFromMap('${esc(s.id)}')" style="margin-top:8px;background:#2f4a32;color:#fff;border:0;border-radius:8px;padding:7px 10px;font-weight:700;cursor:pointer;width:100%">この拠点を開く</button></div>`);
       m.on('dragend',async e=>{const ll=e.target.getLatLng();s.lat=ll.lat;s.lng=ll.lng;await sb.from('sites').update({lat:ll.lat,lng:ll.lng}).eq('id',s.id);});
     });
     map.fitBounds(pts.map(s=>[s.lat,s.lng]),{padding:[60,60],maxZoom:9});
@@ -587,7 +593,12 @@ function viewWork(){
   const staffOpts=(S.staff||[]).filter(s=>s.active!==false).map(s=>`<option value="${esc(s.name)}">`).join('');
   const ctypeOpts=['人件費','資材費','外注費','委託費','種苗費','その他'].map(x=>`<option value="${x}">`).join('');
   const siteOpts=S.sites.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
-  const staffRows=(S.staff||[]).map(s=>`<tr><td><strong>${esc(s.name)}</strong></td><td>${esc(s.role||'—')}</td><td>${esc((S.sites.find(x=>x.id===s.site_id)||{}).name||s.site_id||'—')}</td><td>${esc(s.phone||'—')}</td><td>${s.active===false?'<span style="color:var(--muted)">停止</span>':'<span style="color:#3a7d52;font-weight:700">稼働</span>'}</td><td><button class="act gh sm" data-stafftoggle="${s.id}" data-act="${s.active===false?'0':'1'}">${s.active===false?'再開':'停止'}</button> <button class="act gh sm" data-delstaff="${s.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted)">担当者が未登録です。下で追加できます。</td></tr>';
+  const myStaff=(S.staff||[]).filter(s=>s.site_id===S.site);
+  const stFieldOpts=cur=>S.fields.map(f=>`<option value="${f.id}" ${f.id===cur?'selected':''}>${esc(f.name)}</option>`).join('');
+  const staffRow=s=>`<tr><td><strong>${esc(s.name)}</strong></td><td>${esc(s.role||'—')}</td><td><select class="stafffield" data-id="${s.id}" style="font-size:12px;max-width:130px"><option value="" ${!s.field_id?'selected':''}>拠点共通（全圃場）</option>${stFieldOpts(s.field_id)}</select></td><td>${esc(s.phone||'—')}</td><td>${s.active===false?'<span style="color:var(--muted)">停止</span>':'<span style="color:#3a7d52;font-weight:700">稼働</span>'}</td><td><button class="act gh sm" data-stafftoggle="${s.id}" data-act="${s.active===false?'0':'1'}">${s.active===false?'再開':'停止'}</button> <button class="act gh sm" data-delstaff="${s.id}">削除</button></td></tr>`;
+  const stGroup=(title,rows)=>`<tr><td colspan="6" style="background:rgba(58,125,82,.10);font-weight:700;padding:6px 8px">${esc(title)}　<span style="color:var(--muted);font-weight:400">${rows.length}名</span></td></tr>`+(rows.map(staffRow).join('')||'<tr><td colspan="6" style="color:var(--muted);padding:5px 8px">—</td></tr>');
+  let staffRows=S.fields.map(f=>stGroup(f.name,myStaff.filter(s=>s.field_id===f.id))).join('')+stGroup('拠点共通（全圃場）',myStaff.filter(s=>!s.field_id));
+  if(!myStaff.length)staffRows='<tr><td colspan="6" style="color:var(--muted)">この拠点の担当者は未登録です。下で追加できます。</td></tr>';
   const sopMasterRows=(S.sops||[]).map(s=>`<tr><td class="mono" style="font-size:11px">${esc(s.code)}</td><td><input id="sn_${esc(s.code)}" value="${esc(s.name||'')}" style="width:140px"></td><td><input id="sf_${esc(s.code)}" value="${esc(s.frequency||'')}" style="width:150px"></td><td><input id="sp_${esc(s.code)}" value="${esc(s.purpose||'')}" style="width:190px"></td><td><button class="act gh sm" data-sopsave="${esc(s.code)}">保存</button> <button class="act gh sm" data-delsop="${esc(s.code)}">削除</button></td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted)">未定義です。下で追加できます。</td></tr>';
   const sopMasterCard=`<div class="card"><h2>必須作業の定義（SOPマスタ）</h2><p class="lead">ここで定義した作業が、上の「実施状況」・カレンダーの目安・作業入力の選択肢になります。頻度に「毎月／月1回／四半期毎／半年毎／年1回／週1／随時」等の語を含めると次回目安を自動計算します。</p>
     <table><thead><tr><th>コード</th><th>作業名</th><th>頻度</th><th>目的</th><th></th></tr></thead><tbody>${sopMasterRows}</tbody></table>
@@ -640,13 +651,13 @@ function viewWork(){
     </div>
   </div>
   <datalist id="stafflist">${staffOpts}</datalist><datalist id="ctypelist">${ctypeOpts}</datalist>
-  <div class="card"><h2>担当者マスタ</h2><p class="lead">作業の「担当」入力候補になります（稼働中のみ）。</p>
-    <table><thead><tr><th>氏名</th><th>役割</th><th>拠点</th><th>連絡先</th><th>状態</th><th></th></tr></thead><tbody>${staffRows}</tbody></table>
+  <div class="card"><h2>担当者マスタ（${esc((S.sites.find(x=>x.id===S.site)||{}).name||'')}）</h2><p class="lead">圃場ごとに整理しています。各行の「担当圃場」を変えると割当を変更できます（複数圃場を兼務する場合は「拠点共通」）。作業の「担当」入力候補にもなります。</p>
+    <table><thead><tr><th>氏名</th><th>役割</th><th>担当圃場</th><th>連絡先</th><th>状態</th><th></th></tr></thead><tbody>${staffRows}</tbody></table>
     <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
       <div class="controls">
         <div class="ctl"><span class="lab">氏名</span><input id="st_name" style="width:140px"></div>
         <div class="ctl"><span class="lab">役割</span><input id="st_role" style="width:130px" placeholder="現場主任 など"></div>
-        <div class="ctl"><span class="lab">拠点</span><select id="st_site"><option value="">（全社/未指定）</option>${siteOpts}</select></div>
+        <div class="ctl"><span class="lab">担当圃場</span><select id="st_field"><option value="">拠点共通（全圃場）</option>${S.fields.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}</select></div>
         <div class="ctl"><span class="lab">連絡先</span><input id="st_phone" style="width:140px"></div>
         <button class="act" id="st_add" style="align-self:flex-end">担当者を追加</button>
       </div>
@@ -752,7 +763,8 @@ function bind(){
   const nsa=el('newsop_add');if(nsa)nsa.onclick=async()=>{const name=el('newsop_name').value.trim();if(!name){el('sopmsg').innerHTML='<span class="bad">作業名を入れてください。</span>';return;}const nums=(S.sops||[]).map(s=>parseInt(String(s.code).replace(/\D/g,''))||0);const code='SOP-'+String(Math.max(0,...nums)+1).padStart(3,'0');const so=Math.max(0,...(S.sops||[]).map(s=>s.sort_order||0))+1;const {error}=await sb.from('sops').insert({code,name,frequency:el('newsop_freq').value||null,purpose:el('newsop_purpose').value||null,sort_order:so});if(error){el('sopmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();};
   document.querySelectorAll('[data-sopsave]').forEach(b=>b.onclick=async()=>{const c=b.dataset.sopsave;const {error}=await sb.from('sops').update({name:el('sn_'+c).value,frequency:el('sf_'+c).value||null,purpose:el('sp_'+c).value||null}).eq('code',c);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
   document.querySelectorAll('[data-delsop]').forEach(b=>b.onclick=async()=>{if(!confirm('この必須作業の定義を削除しますか？（過去の作業記録は残ります）'))return;const {error}=await sb.from('sops').delete().eq('code',b.dataset.delsop);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
-  const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:el('st_site').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
+  const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:S.site,field_id:el('st_field').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
+  document.querySelectorAll('.stafffield').forEach(sel=>sel.onchange=async()=>{const {error}=await sb.from('staff').update({field_id:sel.value||null}).eq('id',sel.dataset.id);if(error){alert(error.message);return;}await loadStaff();render();});
   document.querySelectorAll('[data-stafftoggle]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('staff').update({active:b.dataset.act!=='1'}).eq('id',b.dataset.stafftoggle);if(error){alert(error.message);return;}await loadStaff();render();});
   document.querySelectorAll('[data-delstaff]').forEach(b=>b.onclick=async()=>{if(!confirm('この担当者を削除しますか？'))return;const {error}=await sb.from('staff').delete().eq('id',b.dataset.delstaff);if(error){alert(error.message);return;}await loadStaff();render();});
   const sm=el('saveMeta');if(sm)sm.onclick=async()=>{const {error}=await sb.from('fields').update({shozai:el('m_shozai').value,mrv_status:el('m_mrv').value,rfid_managed:el('m_rfid').checked}).eq('id',S.field);if(error){alert(error.message);return;}await loadSite(S.site);render();};
