@@ -141,6 +141,17 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px;paddi
 .dashx .fb-val b{font-family:"Shippori Mincho",serif;font-size:15px;color:var(--dfor)}
 .dashx .fb-val small{color:var(--dsoft);font-size:11px}
 .dashx .fb-empty{font-size:11px;color:var(--dsoft)}
+/* ===== 圃場スケジュール カレンダー ===== */
+.calwrap{margin-top:4px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.caldow{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:2px 0}
+.caldow.sun{color:#c0392b}.caldow.sat{color:#2f6fb0}
+.calcell{min-height:66px;border:1px solid var(--line);border-radius:8px;padding:3px 4px;background:var(--paper);overflow:hidden}
+.calcell.calempty{border:0;background:transparent}
+.calcell.caltoday{border-color:var(--forest2);box-shadow:0 0 0 1px var(--forest2) inset}
+.caldnum{font-size:11px;color:var(--muted);font-weight:700;line-height:1}
+.calchip{font-size:10px;border-radius:4px;padding:1px 4px;margin-top:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:default}
+@media(max-width:720px){.calcell{min-height:54px}.calchip{font-size:9px}}
 </style>
 </head>
 <body>
@@ -163,7 +174,7 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],entryField:null,entryDate:new Date().toISOString().slice(0,10)};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
@@ -192,7 +203,7 @@ function render(){
     <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-i（費用科目・月次推移・担当者マスタ）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-k（必須作業の定義＝SOPマスタ編集）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -541,6 +552,25 @@ function viewWork(){
   const f=S.fields.find(x=>x.id===S.entryField)||S.fields[0];
   const logs=(S.worklogs||[]).filter(w=>w.field_id===f.id);
   const today=new Date().toISOString().slice(0,10);
+  const wm=S.workMonth||today.slice(0,7);const [wy,wmo]=wm.split('-').map(Number);
+  const startDow=new Date(wy,wmo-1,1).getDay();const dim=new Date(wy,wmo,0).getDate();
+  const logByDate={};logs.forEach(w=>{if(w.work_date)(logByDate[w.work_date]=logByDate[w.work_date]||[]).push(w);});
+  const sopDue={};(S.sops||[]).forEach(s=>{const d=freqDays(s.frequency);if(d==null)return;const ls=logs.filter(w=>w.sop_code===s.code&&w.status!=='planned').map(w=>w.work_date).filter(Boolean).sort();const last=ls.length?ls[ls.length-1]:null;if(!last)return;const nd=new Date(last);nd.setDate(nd.getDate()+d);const ds=nd.toISOString().slice(0,10);(sopDue[ds]=sopDue[ds]||[]).push(s.name);});
+  const dow=['日','月','火','水','木','金','土'];
+  let cells='';for(let i=0;i<startDow;i++)cells+='<div class="calcell calempty"></div>';
+  for(let dd=1;dd<=dim;dd++){const ds=`${wy}-${String(wmo).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;const isT=ds===today;
+    const items=(logByDate[ds]||[]).map(w=>{const lbl=w.sop_code?wlSopName(w.sop_code):(w.category||'作業');const col=w.status==='planned'?'#c8742d':'#3a7d52';const tip=esc(lbl)+(w.worker?(' / '+esc(w.worker)):'')+(w.cost_yen!=null?(' / ¥'+Number(w.cost_yen).toLocaleString('ja-JP')):'');return `<div class="calchip" style="background:${col}" title="${tip}">${w.status==='planned'?'予 ':''}${esc(lbl)}</div>`;}).join('');
+    const dues=(sopDue[ds]||[]).map(n=>`<div class="calchip" style="background:transparent;color:#b3502a;border:1px dashed #c8742d" title="必須作業の目安：${esc(n)}">要 ${esc(n)}</div>`).join('');
+    cells+=`<div class="calcell${isT?' caltoday':''}"><div class="caldnum">${dd}</div>${items}${dues}</div>`;}
+  const calHtml=`<div class="card"><h2>${esc(f.name)} ・ 作業カレンダー</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="act gh sm" data-wm="prev">← 前月</button>
+      <strong style="min-width:96px;text-align:center">${wy}年${wmo}月</strong>
+      <button class="act gh sm" data-wm="next">翌月 →</button>
+      <button class="act gh sm" data-wm="today">今月</button>
+      <span class="lead" style="margin-left:auto;font-size:11px"><span style="color:#3a7d52;font-weight:800">■</span> 実施　<span style="color:#c8742d;font-weight:800">■</span> 予定　<span style="color:#b3502a;font-weight:800">▢</span> 必須作業の目安</span>
+    </div>
+    <div class="calgrid">${dow.map((d,i)=>`<div class="caldow ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('')}${cells}</div></div>`;
   const sopRows=(S.sops||[]).map(s=>{
     const ls=logs.filter(w=>w.sop_code===s.code&&w.status!=='planned').map(w=>w.work_date).filter(Boolean).sort();
     const last=ls.length?ls[ls.length-1]:null;const d=freqDays(s.frequency);
@@ -558,6 +588,18 @@ function viewWork(){
   const ctypeOpts=['人件費','資材費','外注費','委託費','種苗費','その他'].map(x=>`<option value="${x}">`).join('');
   const siteOpts=S.sites.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
   const staffRows=(S.staff||[]).map(s=>`<tr><td><strong>${esc(s.name)}</strong></td><td>${esc(s.role||'—')}</td><td>${esc((S.sites.find(x=>x.id===s.site_id)||{}).name||s.site_id||'—')}</td><td>${esc(s.phone||'—')}</td><td>${s.active===false?'<span style="color:var(--muted)">停止</span>':'<span style="color:#3a7d52;font-weight:700">稼働</span>'}</td><td><button class="act gh sm" data-stafftoggle="${s.id}" data-act="${s.active===false?'0':'1'}">${s.active===false?'再開':'停止'}</button> <button class="act gh sm" data-delstaff="${s.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted)">担当者が未登録です。下で追加できます。</td></tr>';
+  const sopMasterRows=(S.sops||[]).map(s=>`<tr><td class="mono" style="font-size:11px">${esc(s.code)}</td><td><input id="sn_${esc(s.code)}" value="${esc(s.name||'')}" style="width:140px"></td><td><input id="sf_${esc(s.code)}" value="${esc(s.frequency||'')}" style="width:150px"></td><td><input id="sp_${esc(s.code)}" value="${esc(s.purpose||'')}" style="width:190px"></td><td><button class="act gh sm" data-sopsave="${esc(s.code)}">保存</button> <button class="act gh sm" data-delsop="${esc(s.code)}">削除</button></td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted)">未定義です。下で追加できます。</td></tr>';
+  const sopMasterCard=`<div class="card"><h2>必須作業の定義（SOPマスタ）</h2><p class="lead">ここで定義した作業が、上の「実施状況」・カレンダーの目安・作業入力の選択肢になります。頻度に「毎月／月1回／四半期毎／半年毎／年1回／週1／随時」等の語を含めると次回目安を自動計算します。</p>
+    <table><thead><tr><th>コード</th><th>作業名</th><th>頻度</th><th>目的</th><th></th></tr></thead><tbody>${sopMasterRows}</tbody></table>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="controls">
+        <div class="ctl"><span class="lab">作業名</span><input id="newsop_name" style="width:150px"></div>
+        <div class="ctl"><span class="lab">頻度</span><input id="newsop_freq" style="width:160px" placeholder="毎月 など"></div>
+        <div class="ctl"><span class="lab">目的(任意)</span><input id="newsop_purpose" style="width:190px"></div>
+        <button class="act" id="newsop_add" style="align-self:flex-end">作業を定義に追加</button>
+      </div>
+      <div id="sopmsg" style="margin-top:6px"></div>
+    </div></div>`;
   return `<div class="card"><h2>作業・費用</h2><p class="lead">圃場を選び、開設・管理者・必須作業・作業履歴・費用を管理します。</p>${fieldSeg}</div>
   <div class="card"><h2>${esc(f.name)} ・ 基本情報</h2>
     <div class="controls">
@@ -571,9 +613,11 @@ function viewWork(){
     </div>
     <div class="sub" style="border:0;margin-top:8px">所有者：${esc(f.owner_summary||'—')}　・　登録個体：${S.trees.filter(t=>t.field_id===f.id).length}本</div>
   </div>
+  ${calHtml}
   <div class="card"><h2>必須作業（SOP）と実施状況</h2>
     <table><thead><tr><th>作業</th><th>頻度</th><th>最終実施</th><th>次回目安</th><th>状態</th></tr></thead><tbody>${sopRows||'<tr><td colspan="5" style="color:var(--muted)">SOP未登録</td></tr>'}</tbody></table>
   </div>
+  ${sopMasterCard}
   <div class="card"><h2>作業履歴・費用</h2>
     <div class="stats"><div class="stat"><div class="k">実績費用</div><div class="v">¥${costDone.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">予定費用</div><div class="v">¥${costPlan.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">記録件数</div><div class="v">${logs.length}<small>件</small></div></div></div>
     <table><thead><tr><th>日付</th><th>作業</th><th>担当</th><th class="num">人数</th><th class="num">時間</th><th>資材</th><th class="num">費用</th><th>区分</th><th></th></tr></thead><tbody>${logRows}</tbody></table>
@@ -628,6 +672,10 @@ function bind(){
   const wfs=el('wf_save');if(wfs)wfs.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const a=el('wf_area').value;const {error}=await sb.from('fields').update({established_on:el('wf_est').value||null,planted_date:el('wf_plant').value||null,manager:el('wf_mgr').value||null,shozai:el('wf_shozai').value||null,mrv_status:el('wf_mrv').value||null,area_sqm:a===''?null:+a}).eq('id',f.id);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();};
   const wla=el('wl_add');if(wla)wla.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('wl_date').value;if(!date){el('wlmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const p=el('wl_persons').value,h=el('wl_hours').value,c=el('wl_cost').value;const row={field_id:f.id,work_date:date,sop_code:el('wl_sop').value||null,category:el('wl_cat').value||null,worker:el('wl_worker').value||null,persons:p===''?null:+p,hours:h===''?null:+h,materials:el('wl_materials').value||null,cost_yen:c===''?null:+c,status:el('wl_status').value,cost_type:el('wl_ctype').value||null,created_by:S.session.user.id};const {error}=await sb.from('work_logs').insert(row);if(error){el('wlmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.dash=null;await loadSite(S.site);render();};
   document.querySelectorAll('[data-delwl]').forEach(b=>b.onclick=async()=>{if(!confirm('この作業記録を削除しますか？'))return;const {error}=await sb.from('work_logs').delete().eq('id',b.dataset.delwl);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();});
+  document.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{const cur=S.workMonth||new Date().toISOString().slice(0,7);let [y,m]=cur.split('-').map(Number);const act=b.dataset.wm;if(act==='today'){S.workMonth=new Date().toISOString().slice(0,7);}else{m+=(act==='next'?1:-1);if(m<1){m=12;y--;}else if(m>12){m=1;y++;}S.workMonth=`${y}-${String(m).padStart(2,'0')}`;}render();});
+  const nsa=el('newsop_add');if(nsa)nsa.onclick=async()=>{const name=el('newsop_name').value.trim();if(!name){el('sopmsg').innerHTML='<span class="bad">作業名を入れてください。</span>';return;}const nums=(S.sops||[]).map(s=>parseInt(String(s.code).replace(/\D/g,''))||0);const code='SOP-'+String(Math.max(0,...nums)+1).padStart(3,'0');const so=Math.max(0,...(S.sops||[]).map(s=>s.sort_order||0))+1;const {error}=await sb.from('sops').insert({code,name,frequency:el('newsop_freq').value||null,purpose:el('newsop_purpose').value||null,sort_order:so});if(error){el('sopmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();};
+  document.querySelectorAll('[data-sopsave]').forEach(b=>b.onclick=async()=>{const c=b.dataset.sopsave;const {error}=await sb.from('sops').update({name:el('sn_'+c).value,frequency:el('sf_'+c).value||null,purpose:el('sp_'+c).value||null}).eq('code',c);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
+  document.querySelectorAll('[data-delsop]').forEach(b=>b.onclick=async()=>{if(!confirm('この必須作業の定義を削除しますか？（過去の作業記録は残ります）'))return;const {error}=await sb.from('sops').delete().eq('code',b.dataset.delsop);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
   const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:el('st_site').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
   document.querySelectorAll('[data-stafftoggle]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('staff').update({active:b.dataset.act!=='1'}).eq('id',b.dataset.stafftoggle);if(error){alert(error.message);return;}await loadStaff();render();});
   document.querySelectorAll('[data-delstaff]').forEach(b=>b.onclick=async()=>{if(!confirm('この担当者を削除しますか？'))return;const {error}=await sb.from('staff').delete().eq('id',b.dataset.delstaff);if(error){alert(error.message);return;}await loadStaff();render();});
