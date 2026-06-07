@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ジャパロニア 圃場ビューア（クラウド版）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f1e8;--paper:#fbfaf4;--ink:#23291f;--muted:#6f7560;--line:#dcd7c4;--forest:#2f4a32;--forest2:#3e6043;--leaf:#6f8f4e;--gold:#c08a2d;--danger:#a8402f;--shadow:0 1px 2px rgba(35,41,31,.06),0 10px 30px rgba(35,41,31,.08)}
+*{box-sizing:border-box}html,body{margin:0}
+body{font-family:"Zen Kaku Gothic New",system-ui,sans-serif;color:var(--ink);min-height:100vh;background:radial-gradient(1200px 500px at 88% -12%,rgba(111,143,78,.12),transparent 60%),radial-gradient(900px 420px at -10% 110%,rgba(154,107,59,.08),transparent 60%),var(--bg);-webkit-font-smoothing:antialiased}
+.mincho{font-family:"Shippori Mincho",serif}.mono{font-family:"JetBrains Mono",monospace}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px 60px}
+header{padding:26px 0 14px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:13px}
+.logo{width:44px;height:44px;border-radius:13px;background:linear-gradient(150deg,var(--forest),var(--forest2));display:grid;place-items:center;box-shadow:var(--shadow)}
+.logo svg{width:27px;height:27px}
+.brand h1{font-size:21px;margin:0;font-weight:800;color:var(--forest);letter-spacing:.03em}
+.brand .sub{font-size:11px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase;margin-top:2px}
+.sitebar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.sitebtn{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);background:var(--paper);border-radius:14px;padding:11px 18px;cursor:pointer;box-shadow:var(--shadow);transition:.16s;min-width:150px}
+.sitebtn:hover{border-color:var(--leaf)}
+.sitebtn.on{background:var(--forest);border-color:var(--forest)}
+.sitebtn.on .nm,.sitebtn.on .mt{color:#fff}
+.sitebtn .nm{font-family:"Shippori Mincho",serif;font-weight:700;font-size:15px;color:var(--forest)}
+.sitebtn .mt{font-size:11px;color:var(--muted)}
+.tabs{display:flex;gap:4px;background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:5px;box-shadow:var(--shadow);flex-wrap:wrap;margin-bottom:14px}
+.tabs button{font-family:inherit;border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;transition:.16s}
+.tabs button:hover{color:var(--ink)}
+.tabs button.on{background:var(--forest2);color:#fff}
+.controls{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl .lab{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;box-shadow:var(--shadow);flex-wrap:wrap}
+.seg button{border:0;background:transparent;font-family:inherit;font-weight:700;font-size:12.5px;padding:8px 13px;cursor:pointer;color:var(--muted);transition:.15s}
+.seg button.on{background:var(--forest);color:#fff}.seg button:disabled{opacity:.3;cursor:not-allowed}
+.regchip{font-size:12px;font-weight:700;color:var(--gold);background:rgba(192,138,45,.12);border:1px solid rgba(192,138,45,.4);border-radius:10px;padding:9px 14px}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:13px;padding:11px 16px;box-shadow:var(--shadow);min-width:118px}
+.stat .k{font-size:10.5px;color:var(--muted);font-weight:700}
+.stat .v{font-size:21px;font-weight:800;color:var(--forest);font-family:"Shippori Mincho",serif;line-height:1.1;margin-top:3px}
+.stat .v small{font-size:11px;color:var(--muted);font-weight:500;margin-left:3px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:20px;margin-bottom:14px}
+.card h2{font-family:"Shippori Mincho",serif;font-size:16px;margin:0 0 3px;color:var(--forest)}
+.card .lead{font-size:12px;color:var(--muted);margin:0 0 14px}
+.maparea{background:repeating-linear-gradient(0deg,#fcfbf5,#fcfbf5 1px,transparent 1px,transparent 26px),repeating-linear-gradient(90deg,#fcfbf5,#fcfbf5 1px,transparent 1px,transparent 26px),#fdfcf6;border:1px solid var(--line);border-radius:14px;padding:10px}
+svg circle{cursor:pointer;transition:transform .12s;transform-box:fill-box;transform-origin:center}
+svg circle:hover{transform:scale(1.55)}
+svg circle.dotsel{stroke:var(--gold);stroke-width:3}
+.legend{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-top:12px;flex-wrap:wrap}
+.legendbar{height:10px;width:150px;border-radius:6px;background:linear-gradient(90deg,#e9efd8,#2f4a32)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+.drawer{position:fixed;top:0;right:0;height:100%;width:420px;max-width:92vw;background:var(--paper);border-left:1px solid var(--line);box-shadow:-12px 0 40px rgba(35,41,31,.16);transform:translateX(105%);transition:transform .32s cubic-bezier(.4,0,.2,1);z-index:40;overflow-y:auto;padding:24px}
+.drawer.open{transform:none}
+.drawer .x{position:absolute;top:16px;right:16px;border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;cursor:pointer;font-size:18px;color:var(--muted)}
+.dtag{font-family:"Shippori Mincho",serif;font-size:22px;font-weight:800;color:var(--forest)}
+.dpos{font-size:12px;color:var(--muted);margin-top:2px}
+.depc{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--muted);word-break:break-all;margin-top:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 9px}
+.sub{font-size:10.5px;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin:20px 0 9px;border-bottom:1px solid var(--line);padding-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:right;font-size:10px;color:var(--muted);font-weight:700;padding:7px 6px;border-bottom:2px solid var(--line)}th:first-child{text-align:left}
+td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;font-family:"JetBrains Mono",monospace;font-size:12px}
+td:first-child{text-align:left;font-family:inherit;font-weight:700}tr:last-child td{border-bottom:0}
+.co2{color:var(--forest);font-weight:700}
+.spark{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px}
+input{font-family:inherit;font-size:13px;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%}
+input:focus{outline:0;border-color:var(--leaf);box-shadow:0 0 0 3px rgba(111,143,78,.18)}
+select{font-family:inherit;font-size:13px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+button.act{font-family:inherit;font-weight:700;font-size:12.5px;cursor:pointer;border:0;border-radius:9px;padding:9px 14px;background:var(--forest);color:#fff;white-space:nowrap}
+button.act:hover{background:var(--forest2)}
+button.act.gh{background:#fff;color:var(--forest);border:1px solid var(--forest)}
+button.act.sm{padding:6px 10px;font-size:11.5px}
+.del{background:#fff;color:var(--danger);border:1px solid #e3b7b7;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;cursor:pointer}
+.scrim{position:fixed;inset:0;background:rgba(35,41,31,.28);opacity:0;pointer-events:none;transition:.3s;z-index:35}.scrim.on{opacity:1;pointer-events:auto}
+.banner{background:linear-gradient(120deg,rgba(192,138,45,.10),rgba(111,143,78,.08));border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:12px;padding:12px 15px;font-size:12px;color:#5a5234;line-height:1.6}
+.center{min-height:90vh;display:flex;align-items:center;justify-content:center;padding:18px}
+.auth{width:380px;max-width:94vw}
+footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px;padding-top:18px;border-top:1px solid var(--line);line-height:1.7}
+.ok{color:var(--forest2);font-size:12px}.bad{color:var(--danger);font-size:12px}
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.phitem{display:flex;flex-direction:column;gap:4px}
+.ph{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:4/3;background:#f7f5ee}
+.ph .phdel{position:absolute;top:5px;right:5px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,24,18,.72);color:#fff;font-size:16px;line-height:26px;cursor:pointer;z-index:5;padding:0}
+.phbroken{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#f3f1e9;color:var(--danger);font-size:11px;text-align:center;padding:6px;pointer-events:none;z-index:1}
+.ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block}
+.phcap{text-align:center;font-size:12px;color:var(--ink);font-family:"JetBrains Mono",monospace}
+.phcap .capdate{cursor:pointer;border-bottom:1px dotted var(--muted)}
+.emptyph{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:18px;border:1px dashed var(--line);border-radius:10px;background:#fffdf6}
+.lightbox{position:fixed;inset:0;background:rgba(20,24,18,.86);display:none;align-items:center;justify-content:center;z-index:60;cursor:zoom-out;padding:30px}
+.lightbox.on{display:flex;flex-direction:column;gap:10px}.lightbox img{max-width:94vw;max-height:84vh;border-radius:10px}.lightbox .lbcap{color:#fff;font-family:"JetBrains Mono",monospace;font-size:13px;background:rgba(0,0,0,.45);padding:5px 12px;border-radius:8px}
+/* ===== 統合ダッシュボード（.dashx でスコープ） ===== */
+.dashx{--dfor:#1f3d2b;--dfor2:#2e573c;--dmoss:#6b8e5a;--dsand:#d9d2c0;--dline:#e4dfd2;--dpaper:#fbfaf6;--dbg:#f4f1ea;--dink:#1c2620;--dsoft:#5a6259;--dok:#3a7d52;--dwarn:#c8742d;}
+.dashx .dhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:2px 0 6px}
+.dashx .dhead h2{font-family:"Shippori Mincho",serif;font-size:20px;font-weight:700}
+.dashx .dhead .en{color:var(--dmoss);font-size:12px;letter-spacing:.08em}
+.dashx .dsub{color:var(--dsoft);font-size:12px;margin-bottom:16px}
+.dashx .dsub b{color:var(--dfor2)}
+.dashx .upd{margin-left:auto;font-family:inherit;border:1px solid var(--dline);background:var(--dpaper);color:var(--dsoft);border-radius:9px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.dashx .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.dashx .kpi{background:var(--dpaper);border:1px solid var(--dline);border-radius:14px;padding:15px 17px;position:relative;overflow:hidden}
+.dashx .kpi::after{content:"";position:absolute;right:-20px;top:-20px;width:62px;height:62px;border-radius:50%;background:var(--dsand);opacity:.4}
+.dashx .kpi .lab{font-size:11px;color:var(--dsoft);letter-spacing:.04em;margin-bottom:5px;position:relative}
+.dashx .kpi .val{font-family:"Shippori Mincho",serif;font-size:26px;font-weight:700;color:var(--dfor);position:relative}
+.dashx .kpi .val small{font-size:13px;font-weight:500;color:var(--dsoft);margin-left:3px}
+.dashx .kpi .sub2{font-size:11px;color:var(--dmoss);margin-top:2px;position:relative}
+.dashx .dpanel{background:var(--dpaper);border:1px solid var(--dline);border-radius:16px;margin-bottom:18px;overflow:hidden}
+.dashx .dpanel-h{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--dline)}
+.dashx .dpanel-h h3{font-family:"Shippori Mincho",serif;font-size:15px;font-weight:600}
+.dashx .dpanel-h .count{font-size:11px;color:var(--dsoft);background:var(--dbg);padding:2px 9px;border-radius:20px}
+.dashx .dpanel-b{padding:16px 18px}
+.dashx .two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+@media(max-width:880px){.dashx .two-col{grid-template-columns:1fr}}
+.dashx table{width:100%;border-collapse:collapse;font-size:13px}
+.dashx th{text-align:left;font-size:11px;letter-spacing:.03em;color:var(--dsoft);font-weight:700;padding:9px 12px;border-bottom:1px solid var(--dline);background:var(--dbg)}
+.dashx td{padding:10px 12px;border-bottom:1px solid var(--dline)}
+.dashx tr:last-child td{border-bottom:none}
+.dashx .num{text-align:right;font-variant-numeric:tabular-nums}
+.dashx .dmuted{color:var(--dsoft)}
+.dashx .dbar{height:9px;border-radius:5px;background:var(--dline);overflow:hidden;display:flex;min-width:80px}
+.dashx .dbar i{display:block;height:100%}
+.dashx .spill{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#eef0e6;color:#5c6a3c}
+.dashx .dlegend{display:flex;gap:14px;font-size:11px;color:var(--dsoft);margin-bottom:10px;flex-wrap:wrap}
+.dashx .dlegend i{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+.dashx .sec-row{display:grid;grid-template-columns:140px 1fr 92px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dotted var(--dline)}
+.dashx .sec-row:last-child{border-bottom:none}
+.dashx .sec-row .nm{font-size:13px}
+.dashx .sec-row .pc{font-size:12px;color:var(--dsoft);text-align:right;font-variant-numeric:tabular-nums}
+.dashx .dnote{font-size:11.5px;color:var(--dsoft);margin-top:8px}
+.dashx .fb-site{font-size:11px;font-weight:700;color:#5c6a3c;letter-spacing:.03em;margin:14px 0 7px;padding-bottom:5px;border-bottom:1px solid var(--dline)}
+.dashx .fb-site:first-child{margin-top:0}
+.dashx .fb-row{display:grid;grid-template-columns:88px 1fr 104px;gap:10px;align-items:center;padding:5px 0}
+.dashx .fb-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dashx .fb-track{height:15px;background:#f0eee7;border-radius:8px;overflow:hidden;display:flex}
+.dashx .fb-track i{display:block;height:100%}
+.dashx .fb-val{text-align:right;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dashx .fb-val b{font-family:"Shippori Mincho",serif;font-size:15px;color:var(--dfor)}
+.dashx .fb-val small{color:var(--dsoft);font-size:11px}
+.dashx .fb-empty{font-size:11px;color:var(--dsoft)}
+/* ===== 圃場スケジュール カレンダー ===== */
+.calwrap{margin-top:4px}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.caldow{text-align:center;font-size:11px;color:var(--muted);font-weight:700;padding:2px 0}
+.caldow.sun{color:#c0392b}.caldow.sat{color:#2f6fb0}
+.calcell{min-height:66px;border:1px solid var(--line);border-radius:8px;padding:3px 4px;background:var(--paper);overflow:hidden}
+.calcell.calempty{border:0;background:transparent}
+.calcell.caltoday{border-color:var(--forest2);box-shadow:0 0 0 1px var(--forest2) inset}
+.caldnum{font-size:11px;color:var(--muted);font-weight:700;line-height:1}
+.calchip{font-size:10px;border-radius:4px;padding:1px 4px;margin-top:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:default}
+@media(max-width:720px){.calcell{min-height:54px}.calchip{font-size:9px}}
+</style>
+</head>
+<body>
+<div id="root"><div class="center"><div class="mono" style="color:var(--muted)">読み込み中…</div></div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import L from 'https://esm.sh/leaflet@1.9.4';
+const SUPABASE_URL='https://bieamtjesoaimlmrtmfj.supabase.co';   // デプロイ時はここに直書きしてもよい
+const SUPABASE_ANON='sb_publishable_-paeLD0LA0CMmMmDKhXVEg_YN_Y0OGx';
+const LEAF='<svg viewBox="0 0 24 24" fill="none"><path d="M12 21v-6" stroke="#cfe0b8" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15c-3.6 0-5.2-2.2-5.2-4.6C6.8 8.4 8 7.6 8 6c1.4.6 2 1.8 2 1.8S10.4 3 12 2c1.6 1 2 5.8 2 5.8s.6-1.2 2-1.8c0 1.6 1.2 2.4 1.2 4.4C17.2 12.8 15.6 15 12 15Z" fill="#9fc06f"/></svg>';
+
+const P={cfL:0.452,cfB:0.417,cfS:0.474,cfR:0.456};
+function co2(m){if(!m)return null;let dbh=(m.dbh_cm!=null&&m.dbh_cm!=='')?+m.dbh_cm:null;let d0=(m.root_d_cm!=null&&m.root_d_cm!=='')?+m.root_d_cm:null;let est=false;if(dbh==null&&d0!=null){dbh=(d0-1.6721)/1.2663;est=true;}if(dbh==null)return null;if(d0==null)d0=1.2663*dbh+1.6721;let h=(m.height_m!=null&&m.height_m!=='')?(+m.height_m*100):null;if(h==null){h=41.306*d0+53.998;est=true;}const X=dbh*dbh*h;const WL=.001*X**.7197,WB=.0005*X**.7375,WS=.0007*X**.8221,WR=.0011*(d0*d0)**1.602;return{kg:(WL*P.cfL+WB*P.cfB+WS*P.cfS+WR*P.cfR)*(44/12),est};}
+const fmt=(n,d=1)=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d});
+const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const el=id=>document.getElementById(id);
+const root=el('root');
+function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.round(x+(b[i]-x)*Math.max(0,Math.min(1,t))));return`rgb(${c[0]},${c[1]},${c[2]})`;}
+
+let sb=null;
+let pendingPhotos=[];
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
+
+init();
+function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
+async function init(){const url=getCfg('jp_sb_url',SUPABASE_URL),key=getCfg('jp_sb_key',SUPABASE_ANON);if(!url||!key){renderSetup();return;}sb=createClient(url,key,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}});const {data}=await sb.auth.getSession();S.session=data.session;sb.auth.onAuthStateChange((_e,s)=>{S.session=s;s?afterLogin():render();});S.session?afterLogin():render();}
+function frame(inner){return `<div class="center"><div class="card auth"><div class="brand" style="margin-bottom:14px"><div class="logo">${LEAF}</div><div><h1 class="mincho" style="font-size:18px;color:var(--forest);margin:0">ジャパロニア</h1><div class="sub">植林CO₂管理 クラウド</div></div></div>${inner}</div></div>`;}
+function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var(--forest)">初回設定</h2><p class="lead" style="font-size:12px;color:var(--muted)">SupabaseのURLとキー（anon/publishable）を貼ってください。この端末に記憶され次回以降は不要です。</p><label class="sub" style="border:0;margin:8px 0 4px">Project URL</label><input id="c_url" placeholder="https://xxxx.supabase.co"><label class="sub" style="border:0;margin:10px 0 4px">anon / publishable キー</label><input id="c_key" placeholder="eyJ... / sb_publishable_..."><button class="act" id="c_save" style="margin-top:12px;width:100%">保存して始める</button>`);el('c_save').onclick=()=>{const u=el('c_url').value.trim(),k=el('c_key').value.trim();if(!u||!k){alert('両方入れてください');return;}localStorage.setItem('jp_sb_url',u);localStorage.setItem('jp_sb_key',k);location.reload();};}
+async function afterLogin(){await loadSites();await loadStaff();render();}
+async function loadStaff(){S.staff=((await sb.from('staff').select('*').order('name')).data)||[];}
+async function loadSites(){const {data,error}=await sb.from('sites').select('*').order('name');if(error){alert('読込エラー: '+error.message);return;}S.sites=data||[];if(!S.site&&S.sites.length)S.site=S.sites[0].id;if(S.site)await loadSite(S.site);}
+async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=fids.length?((await sb.from('trees').select('*').in('field_id',fids).limit(100000)).data||[]):[];const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}}
+
+function treeMeas(tid){return S.meas.filter(m=>m.tree_id===tid);}
+function measFor(tid,round){const ms=treeMeas(tid);if(!ms.length)return null;if(round==='latest')return ms[ms.length-1];return ms.find(m=>m.measured_on===round)||null;}
+function metricVal(tid,round,metric){const m=measFor(tid,round);if(!m)return null;if(metric==='co2'){const c=co2(m);return c?c.kg:(m.co2_kg??null);}if(metric==='h')return m.height_m;if(metric==='dbh')return m.dbh_cm;return null;}
+function fieldRounds(f){const tids=S.trees.filter(t=>t.field_id===f.id).map(t=>t.id);const set=new Set();S.meas.forEach(m=>{if(tids.includes(m.tree_id))set.add(m.measured_on);});return[...set].sort();}
+const val=(k,tid)=>{const e=document.querySelector(`[data-tid="${tid}"][data-k="${k}"]`);return e?e.value:'';};
+function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map(([v,l])=>`<button class="${v===cur?'on':''}" data-v="${esc(v)}">${esc(l)}</button>`).join('')+`</div>`;}
+
+function render(){
+  if(!S.session){renderLogin();return;}
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewDash();
+  const sites=S.sites.map(s=>`<div class="sitebtn ${s.id===S.site?'on':''}" data-site="${esc(s.id)}"><span class="nm">${esc(s.name)}</span><span class="mt">${S.site===s.id?S.fields.length+' 圃場':''}</span></div>`).join('');
+  root.innerHTML=`<div class="wrap">
+    <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
+      <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-n を表示中 ✅</div>
+    <div class="sitebar">${sites||'<span class="lead">拠点なし</span>'}</div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='dash'?'on':''}" data-tab="dash">ダッシュボード</button></div>
+    ${content}
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-n（カメラ計測：スマホUI修正）</span></footer>
+  </div>
+  <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
+  el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
+  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{S.tab=b.dataset.tab;render();});
+  document.querySelectorAll('[data-site]').forEach(b=>b.onclick=async()=>{S.site=b.dataset.site;S.field=null;S.entryField=null;await loadSite(S.site);render();});
+  const sc=el('scrim');if(sc)sc.onclick=closeDrawer;const lb=el('lb');if(lb)lb.onclick=()=>lb.classList.remove('on');
+  bind();
+}
+function renderLogin(){root.innerHTML=frame(`<h2 class="mincho" style="color:var(--forest)">ログイン</h2><label class="sub" style="border:0;margin:8px 0 4px">メールアドレス</label><input id="email" type="email"><label class="sub" style="border:0;margin:10px 0 4px">パスワード</label><input id="pw" type="password"><div style="margin-top:12px;display:flex;gap:8px"><button class="act" id="login" style="flex:1">ログイン</button><button class="act gh" id="signup">新規登録</button></div><div id="msg" style="margin-top:8px"></div><button class="act gh sm" id="reset" style="margin-top:12px">接続先を変更</button>`);
+  el('login').onclick=async()=>{const {error}=await sb.auth.signInWithPassword({email:el('email').value.trim(),password:el('pw').value});el('msg').innerHTML=error?`<span class="bad">${esc(error.message)}</span>`:`<span class="ok">OK</span>`;};
+  el('signup').onclick=async()=>{const {error}=await sb.auth.signUp({email:el('email').value.trim(),password:el('pw').value});el('msg').innerHTML=error?`<span class="bad">${esc(error.message)}</span>`:`<span class="ok">登録しました。確認メールが届く場合があります。</span>`;};
+  el('reset').onclick=()=>{localStorage.removeItem('jp_sb_url');localStorage.removeItem('jp_sb_key');location.reload();};}
+
+/* ===== 全国マップ ===== */
+function viewJp(){
+  const withxy=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
+  const note=withxy.length?'':'<div class="banner">拠点の緯度経度が未設定です。<b>migrate_拠点座標.sql</b> をSupabaseで実行すると、地図に拠点が表示されます。</div>';
+  return `<div class="card"><h2>全国マップ</h2><p class="lead">拠点のピンをクリックすると概要が出ます。「この拠点を開く」でその地区の全圃場をまとめた地区マップへ。ピンはドラッグで位置を微調整でき、離すと保存されます。</p>
+   <div id="jpmap" style="height:64vh;min-height:380px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
+   ${note}</div>`;
+}
+function initJpMap(){
+  const box=el('jpmap'); if(!box||typeof L==='undefined')return;
+  const map=L.map('jpmap');
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
+  const pts=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
+  if(pts.length){
+    const icon=L.divIcon({className:'',html:'<div style="width:18px;height:18px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#2f4a32;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',iconSize:[18,18],iconAnchor:[9,18]});
+    pts.forEach(s=>{
+      const m=L.marker([s.lat,s.lng],{draggable:true,icon}).addTo(map);
+      const fcount=(S.site===s.id)?` ・ ${S.fields.length}圃場`:'';
+      m.bindPopup(`<b>${esc(s.name)}</b>${fcount}<br><button onclick="openSiteFromMap('${esc(s.id)}')" style="margin-top:6px;background:#2f4a32;color:#fff;border:0;border-radius:8px;padding:6px 10px;font-weight:700;cursor:pointer">この拠点を開く</button>`);
+      m.on('dragend',async e=>{const ll=e.target.getLatLng();s.lat=ll.lat;s.lng=ll.lng;await sb.from('sites').update({lat:ll.lat,lng:ll.lng}).eq('id',s.id);});
+    });
+    map.fitBounds(pts.map(s=>[s.lat,s.lng]),{padding:[60,60],maxZoom:9});
+  } else { map.setView([37.5,137.0],5); }
+  setTimeout(()=>map.invalidateSize(),140);
+}
+window.openSiteFromMap=async (id)=>{S.site=id;S.field=null;S.entryField=null;await loadSite(id);S.tab='district';render();};
+
+/* ===== 地区マップ（航空写真の上に圃場ポリゴンを描く・画像ベース） ===== */
+const DISTRICT_PALETTE=['#e4572e','#f3a712','#3fa34d','#4d80e4','#9b5de5','#2a9d8f','#e07a5f','#c9184a'];
+const DIST={edit:false,field:null,verts:[],url:null,drag:-1,moved:false};
+function fieldColor(i){return DISTRICT_PALETTE[i%DISTRICT_PALETTE.length];}
+function viewDistrict(){
+  if(!S.site) return `<div class="card"><h2>地区マップ</h2><p class="lead">上の地区（拠点）を選ぶか、全国マップのピンから開いてください。</p></div>`;
+  const site=S.sites.find(s=>s.id===S.site);const title=esc(site?site.name:'');
+  if(!S.fields.length) return `<div class="card"><h2>${title} ・ 地区マップ</h2><p class="lead">この地区に圃場がありません。</p></div>`;
+  const counts=S.fields.map((f,i)=>({f,i,n:S.trees.filter(t=>t.field_id===f.id).length,has:!!(f.boundary&&f.boundary.pts)}));
+  const total=counts.reduce((a,b)=>a+b.n,0);
+  const chips=counts.map(x=>{const sel=DIST.edit&&DIST.field===x.f.id;return `<button data-distfield="${x.f.id}" style="display:inline-flex;align-items:center;gap:7px;border:2px solid ${sel?fieldColor(x.i):'var(--line)'};background:${sel?'rgba(0,0,0,.05)':'transparent'};border-radius:999px;padding:6px 13px;margin:3px 6px 3px 0;font-weight:700;font-size:12px;cursor:pointer;color:var(--ink)"><span style="width:11px;height:11px;border-radius:50%;background:${fieldColor(x.i)};display:inline-block"></span>${esc(x.f.name)}<span class="mono" style="color:var(--muted)">${x.n}本</span>${x.has?'':' <span class="mono" style="color:var(--danger);font-size:10px">境界なし</span>'}</button>`;}).join('');
+  const editBtn=`<button class="act ${DIST.edit?'':'gh'} sm" id="distEditToggle">${DIST.edit?'編集を終了':'境界を編集'}</button>`;
+  const editBar=DIST.edit?`<div class="banner" style="margin-top:8px"><b>編集モード</b>：上のチップで圃場を選び、航空写真の上をクリックして頂点を追加（点はドラッグで移動）。一周ぶん置いたら「保存」。<div class="controls" style="margin-top:8px"><button class="act gh sm" id="distUndo">1点戻す</button><button class="act gh sm" id="distClear">クリア</button><button class="act sm" id="distSave">保存</button><button class="act gh sm" id="distDel">この圃場の境界を削除</button></div></div>`:'';
+  if(!site||!site.overlay_path){
+    return `<div class="card"><h2>${title} ・ 地区マップ</h2><p class="lead">${title}の航空写真が未登録です。Supabaseの <b>field-docs</b> バケットに <span class="mono">overlays/${esc(S.site)}.jpg</span> をアップロードすると、ここに表示され、上に境界を描けます。</p></div>`;
+  }
+  return `<div class="card"><h2>${title} ・ 地区マップ</h2>
+     <p class="lead">航空写真の上に各圃場の輪郭を色分け表示します（${S.fields.length}圃場・計${total}本）。${DIST.edit?'':'ポリゴンやチップをクリックでその圃場の詳細マップへ。境界を引くには「境界を編集」。'}</p>
+     <div style="margin:4px 0 8px">${editBtn}</div>
+     <div style="margin:2px 0">${chips}</div>${editBar}
+     <div id="distwrap" style="position:relative;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#0d0d0d;margin-top:10px">
+       <img id="distimg" alt="" style="display:block;width:100%;height:auto"/>
+       <svg id="distsvg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;${DIST.edit?'cursor:crosshair':''}"></svg>
+       <div id="disthandles" style="position:absolute;inset:0;pointer-events:none"></div>
+     </div></div>`;
+}
+async function initDistrictImg(){
+  const site=S.sites.find(s=>s.id===S.site);if(!site||!site.overlay_path)return;
+  const img=el('distimg');if(!img)return;
+  img.onload=()=>drawDistOverlay();
+  try{const {data}=await sb.storage.from('field-docs').createSignedUrl(site.overlay_path,3600);if(data&&data.signedUrl){DIST.url=data.signedUrl;img.src=data.signedUrl;}}catch(e){}
+  if(img.complete&&img.naturalWidth)drawDistOverlay();
+}
+function ptStr(pts){return pts.map(p=>`${(p[0]*100).toFixed(2)},${(p[1]*100).toFixed(2)}`).join(' ');}
+function drawDistOverlay(){
+  const svg=el('distsvg'),handles=el('disthandles');if(!svg)return;
+  let poly='';
+  if(DIST.edit)poly+=`<rect x="0" y="0" width="100" height="100" fill="#000" fill-opacity="0" pointer-events="all"></rect>`;
+  S.fields.forEach((f,i)=>{
+    if(!(f.boundary&&f.boundary.pts&&f.boundary.pts.length>=3))return;
+    if(DIST.edit&&DIST.field===f.id)return;
+    poly+=`<polygon points="${ptStr(f.boundary.pts)}" fill="${fieldColor(i)}" fill-opacity="0.40" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke" style="${DIST.edit?'':'cursor:pointer'}" data-openpoly="${f.id}"></polygon>`;
+  });
+  if(DIST.edit&&DIST.verts.length){poly+=`<polygon id="distwork" points="${ptStr(DIST.verts)}" fill="#e4572e" fill-opacity="0.25" stroke="#fff" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"></polygon>`;}
+  svg.innerHTML=poly;
+  if(!DIST.edit){svg.querySelectorAll('[data-openpoly]').forEach(p=>p.onclick=()=>{S.field=p.getAttribute('data-openpoly');S.tab='map';closeDrawer();render();});}
+  handles.innerHTML='';
+  if(DIST.edit){
+    DIST.verts.forEach((v,idx)=>{
+      const h=document.createElement('div');
+      h.style.cssText=`position:absolute;left:${v[0]*100}%;top:${v[1]*100}%;width:14px;height:14px;border-radius:50%;background:#e4572e;border:2px solid #fff;box-shadow:0 0 3px rgba(0,0,0,.7);transform:translate(-50%,-50%);pointer-events:auto;cursor:grab;touch-action:none`;
+      h.onpointerdown=(e)=>{e.preventDefault();e.stopPropagation();DIST.drag=idx;DIST.moved=false;try{h.setPointerCapture(e.pointerId);}catch(_){}}; 
+      handles.appendChild(h);
+    });
+  }
+  S.fields.forEach((f,i)=>{
+    if(!(f.boundary&&f.boundary.pts&&f.boundary.pts.length>=3))return;
+    if(DIST.edit&&DIST.field===f.id)return;
+    const pts=f.boundary.pts,cx=pts.reduce((a,p)=>a+p[0],0)/pts.length,cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+    const lab=document.createElement('div');lab.textContent=f.name;
+    lab.style.cssText=`position:absolute;left:${cx*100}%;top:${cy*100}%;transform:translate(-50%,-50%);pointer-events:none;font-family:'Zen Kaku Gothic New',system-ui,sans-serif;font-weight:700;font-size:12px;line-height:1;color:#fff;background:${fieldColor(i)};opacity:.93;padding:3px 9px;border-radius:999px;border:1px solid rgba(255,255,255,.85);white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.55)`;
+    handles.appendChild(lab);
+  });
+}
+function distClientToNorm(e){const svg=el('distsvg');const r=svg.getBoundingClientRect();let x=(e.clientX-r.left)/r.width,y=(e.clientY-r.top)/r.height;return [Math.max(0,Math.min(1,x)),Math.max(0,Math.min(1,y))];}
+function distOnMove(e){if(DIST.drag<0)return;DIST.moved=true;DIST.verts[DIST.drag]=distClientToNorm(e);const wp=el('distwork');if(wp)wp.setAttribute('points',ptStr(DIST.verts));const handles=el('disthandles');const h=handles&&handles.children[DIST.drag];if(h){h.style.left=(DIST.verts[DIST.drag][0]*100)+'%';h.style.top=(DIST.verts[DIST.drag][1]*100)+'%';}}
+function distOnUp(){if(DIST.drag>=0){DIST.drag=-1;drawDistOverlay();}}
+function distSvgClick(e){if(!DIST.edit)return;if(DIST.moved){DIST.moved=false;return;}if(!DIST.field){alert('編集する圃場をチップで選んでください');return;}DIST.verts.push(distClientToNorm(e));drawDistOverlay();}
+function distUndo(){if(!DIST.verts.length)return;DIST.verts.pop();drawDistOverlay();}
+function distClearWorking(){DIST.verts=[];drawDistOverlay();}
+function distSelectField(fid){DIST.field=fid;const f=S.fields.find(x=>x.id===fid);DIST.verts=(f&&f.boundary&&f.boundary.pts)?f.boundary.pts.map(p=>[p[0],p[1]]):[];render();}
+function distToggleEdit(){DIST.edit=!DIST.edit;if(DIST.edit){if(!DIST.field&&S.fields[0])DIST.field=S.fields[0].id;const f=S.fields.find(x=>x.id===DIST.field);DIST.verts=(f&&f.boundary&&f.boundary.pts)?f.boundary.pts.map(p=>[p[0],p[1]]):[];}else{DIST.verts=[];}render();}
+async function distSave(){if(!DIST.field){alert('編集する圃場をチップで選んでください');return;}if(DIST.verts.length<3){alert('頂点を3つ以上置いてください');return;}const gj={type:'img',pts:DIST.verts.map(p=>[+p[0].toFixed(5),+p[1].toFixed(5)])};const {error}=await sb.from('fields').update({boundary:gj}).eq('id',DIST.field);if(error){alert(error.message);return;}await loadSite(S.site);render();}
+async function distDel(){if(!DIST.field){alert('削除する圃場を選んでください');return;}if(!confirm('この圃場の境界を削除しますか？'))return;const {error}=await sb.from('fields').update({boundary:null}).eq('id',DIST.field);if(error){alert(error.message);return;}DIST.verts=[];await loadSite(S.site);render();}
+
+/* ===== 圃場マップ ===== */
+function viewMap(){
+  if(!S.fields.length) return `<div class="card"><p class="lead">この拠点に圃場がありません。</p></div>`;
+  const f=S.fields.find(x=>x.id===S.field)||S.fields[0];
+  const fieldSeg=seg('field',S.fields.map(x=>[x.id,x.name]),f.id);
+  const metricSeg=seg('metric',[['co2','CO₂'],['h','樹高'],['dbh','DBH']],S.metric);
+  const rounds=fieldRounds(f);
+  const roundSeg=seg('round',[['latest','最新']].concat(rounds.map(r=>[r,r.slice(5).replace('-','/')])),S.round);
+  const trees=S.trees.filter(t=>t.field_id===f.id);
+  const cv=trees.map(t=>metricVal(t.id,S.round,'co2')).filter(v=>v!=null);
+  const hv=trees.map(t=>metricVal(t.id,S.round,'h')).filter(v=>v!=null);
+  const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+  const stats=[['個体数',trees.length,'',0],['計測済',cv.length,'',0],['平均樹高',avg(hv),'m',2],['平均CO₂',avg(cv),'kg',2],['合計CO₂',cv.reduce((a,b)=>a+b,0),'kg',0]];
+  const viewSeg=seg('view',[['single','1つ'],['compare','2つ並べて（樹高×CO₂）']],S.compare?'compare':'single');
+  const cl=m=>m==='co2'?'CO₂':m==='h'?'樹高':'DBH';
+  const ctrls=`<div class="controls">
+     <div class="ctl"><span class="lab">圃場</span>${fieldSeg}</div>
+     ${S.compare?'':`<div class="ctl"><span class="lab">色（指標）</span>${metricSeg}</div>`}
+     <div class="ctl"><span class="lab">表示</span>${viewSeg}</div>
+     <div class="ctl"><span class="lab">計測回</span>${roundSeg}</div>
+     <span class="regchip">${esc(f.mrv_status||'—')}${f.rfid_managed?' · RFID':''}</span></div>`;
+  const statsHtml=`<div class="stats">${stats.map(([k,v,u,d])=>`<div class="stat"><div class="k">${k}</div><div class="v">${fmt(v,d)}<small>${u}</small></div></div>`).join('')}</div>`;
+  const maps=S.compare
+   ? `<div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--leaf)">色＝樹高</span></h2><p class="lead">濃いほど樹高が大きい。点クリックで個体の詳細。</p>${buildMap(f,'h','H')}</div>
+      <div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--gold)">色＝CO₂</span></h2><p class="lead">濃いほどCO₂吸収量が大きい。点クリックで個体の詳細。</p>${buildMap(f,'co2','C')}</div>`
+   : `<div class="card"><h2>${esc(f.name)}</h2><p class="lead">点をクリックすると個体の計測履歴とCO₂推移が右に開きます。色の濃さ＝${cl(S.metric)}の大小。</p>${buildMap(f,S.metric,'')}</div>`;
+  return `${ctrls}${statsHtml}${maps}${parcelCard(f)}`;
+}
+function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
+  const trees=S.trees.filter(t=>t.field_id===f.id);
+  if(!trees.length) return `<div class="banner">この圃場に個体データがありません。<b>migrate_個体と計測.sql</b> をSupabaseで実行すると表示されます。</div>`;
+  const grid=(trees[0].pos_ew!=null);
+  const vals=trees.map(t=>metricVal(t.id,S.round,metric)).filter(v=>v!=null);
+  const mn=vals.length?Math.min(...vals):0,mx=vals.length?Math.max(...vals):1;
+  const norm=v=>mx>mn?(v-mn)/(mx-mn):0.5;
+  const unit=metric==='co2'?'kg':(metric==='h'?'m':'cm');
+  let W,H,pos,r;
+  if(grid){const cols=Math.max(...trees.map(t=>t.pos_ew||1)),rows=Math.max(...trees.map(t=>t.pos_ns||1));const cs=26,pad=14;W=cols*cs+pad*2;H=rows*cs+pad*2;pos=t=>[pad+((t.pos_ew||1)-0.5)*cs,pad+(rows-(t.pos_ns||1)+0.5)*cs];r=9;}
+  else{const xs=trees.map(t=>+t.x),ys=trees.map(t=>+t.y);const xmn=Math.min(...xs),xmx=Math.max(...xs),ymn=Math.min(...ys),ymx=Math.max(...ys);const dw=(xmx-xmn)||1,dh=(ymx-ymn)||1;const pad=26,headH=24;W=900;H=Math.max(240,Math.round(W*dh/dw)+headH);pos=t=>[pad+((+t.x-xmn)/dw)*(W-2*pad),pad+headH+((+t.y-ymn)/dh)*(H-2*pad-headH)];r=9;}
+  const circles=trees.map(t=>{const[cx,cy]=pos(t);const v=metricVal(t.id,S.round,metric);const fill=v==null?'#d8d3c4':heat(norm(v));return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}" data-id="${t.id}"><title>${esc(t.label||'')} ${v==null?'(計測なし)':fmt(v,2)+unit}</title></circle>`;}).join('');
+  let overlay='';
+  if(!grid){
+    const byCol={};trees.forEach(t=>{const c=(String(t.label).match(/^[A-Za-z]+/)||[''])[0];(byCol[c]=byCol[c]||[]).push(t);});
+    const cols=Object.keys(byCol).sort((a,b)=>pos(byCol[a][0])[0]-pos(byCol[b][0])[0]);
+    overlay+=cols.map(c=>`<text x="${pos(byCol[c][0])[0].toFixed(1)}" y="17" text-anchor="middle" font-family="Shippori Mincho,serif" font-weight="700" font-size="16" fill="#2f4a32">${esc(c)}</text>`).join('');
+    overlay+=trees.map(t=>{const[cx,cy]=pos(t);const num=(String(t.label).match(/\d+$/)||[''])[0];return `<text x="${cx.toFixed(1)}" y="${(cy+3).toFixed(1)}" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono" fill="#fff" stroke="#33372b" stroke-width="0.6" style="paint-order:stroke" pointer-events="none">${num}</text>`;}).join('');
+  }
+  return `<div class="maparea"><svg id="mapsvg${idsuf}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;max-height:78vh" preserveAspectRatio="xMidYMid meet">${circles}${overlay}</svg></div>
+   <div class="legend"><span>少</span><span class="legendbar"></span><span>多</span><span class="mono">${fmt(mn,2)}–${fmt(mx,2)} ${unit}</span><span style="margin-left:auto"><span class="sw" style="background:#d8d3c4"></span>計測なし</span></div>`;
+}
+function sparkChart(ms){const W=360,H=120,pad=22;const vals=ms.map(m=>{const c=co2(m);return c?c.kg:0;});const mx=Math.max(1,...vals);const n=ms.length;const bw=(W-pad*2)/n*0.5;const bars=ms.map((m,i)=>{const v=vals[i];const x=pad+(W-pad*2)*(n===1?0.5:i/(n-1))-bw/2;const h=(H-34)*(v/mx);const y=H-20-h;return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="#3e6043"/><text x="${(x+bw/2).toFixed(1)}" y="${(y-3).toFixed(1)}" font-size="9" text-anchor="middle" fill="#2f4a32" font-family="JetBrains Mono">${fmt(v,1)}</text><text x="${(x+bw/2).toFixed(1)}" y="${H-6}" font-size="8" text-anchor="middle" fill="#6f7560">${m.measured_on.slice(5).replace('-','/')}</text>`;}).join('');return `<svg viewBox="0 0 ${W} ${H}" width="100%">${bars}</svg>`;}
+function drawerContent(t){
+  const ms=treeMeas(t.id);
+  const rows=ms.map(m=>{const c=co2(m);return `<tr><td>${m.measured_on}</td><td>${fmt(m.height_m,2)}</td><td>${fmt(m.dbh_cm,1)}</td><td>${fmt(m.root_d_cm,1)}</td><td class="co2">${c?fmt(c.kg,2):'–'}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">計測記録なし</td></tr>';
+  return `<button class="x" id="dx">×</button>
+   <div class="dtag">${esc(t.label||t.id)}</div>
+   <div class="dpos">${t.pos_ew!=null?`格子位置 EW ${t.pos_ew} · NS ${t.pos_ns}`:'座標配置'}${t.planted_date?` · 植栽 ${esc(t.planted_date)}`:''}</div>
+   ${t.epc?`<div class="depc">EPC ${esc(t.epc)}</div>`:''}
+   ${ms.length?`<div class="sub">CO₂の推移</div><div class="spark">${sparkChart(ms)}</div>`:''}
+   <div class="sub">計測履歴</div>
+   <table><thead><tr><th>計測日</th><th>樹高m</th><th>DBHcm</th><th>根元cm</th><th>CO₂kg</th></tr></thead><tbody>${rows}</tbody></table><div class="sub">写真</div><div class="gallery" id="dphotos"><span class="lead">読み込み中…</span></div><div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><label class="act gh sm" style="cursor:pointer">＋ 写真を追加<input id="dphotofile" type="file" accept="image/*" multiple style="display:none"></label><span class="lead">撮影日 <input id="dphotodate" type="date" value="${t.planted_date||''}" style="width:148px"> （自動取得・無い時の予備）</span></div>`;
+}
+function openDrawer(tid){const t=S.trees.find(x=>x.id===tid);if(!t)return;el('drawer').innerHTML=drawerContent(t);el('drawer').classList.add('open');el('scrim').classList.add('on');document.querySelectorAll('.maparea svg circle').forEach(c=>c.classList.toggle('dotsel',c.getAttribute('data-id')===tid));const x=el('dx');if(x)x.onclick=closeDrawer;loadPhotos(t.id);bindPhotoUpload(t);}
+async function loadPhotos(tid){const box=el('dphotos');if(!box)return;try{const {data,error}=await sb.from('tree_photos').select('*').eq('tree_id',tid).order('taken_on',{nullsFirst:false});if(error)throw error;if(!data||!data.length){box.innerHTML='<div class="emptyph">写真はまだありません</div>';return;}
+  box.innerHTML=data.map((p,i)=>`<div class="phitem"><div class="ph"><img id="ph_${i}" alt=""><button class="phdel" data-pid="${esc(p.id)}" title="この写真を削除">×</button></div><div class="phcap"><span class="capdate" data-pid="${esc(p.id)}" title="クリックで日付を入力・修正">${esc(p.taken_on||'撮影日不明')}</span></div></div>`).join('');
+  data.forEach((p,i)=>{const im=el('ph_'+i);if(!im)return;const pub=sb.storage.from('tree-photos').getPublicUrl(p.storage_path).data.publicUrl;im.src=pub;im.onclick=()=>openLb(im.src,p.taken_on||'撮影日不明');im.onerror=async()=>{im.onerror=null;try{const {data:s}=await sb.storage.from('tree-photos').createSignedUrl(p.storage_path,3600);if(s&&s.signedUrl){im.src=s.signedUrl;}else{markBroken(im);}}catch(_){markBroken(im);}};});
+  box.querySelectorAll('.phdel').forEach(b=>b.onclick=async()=>{if(!confirm('この写真を削除しますか？'))return;const pid=b.dataset.pid;const row=data.find(x=>x.id===pid);if(row&&row.storage_path){try{await sb.storage.from('tree-photos').remove([row.storage_path]);}catch(_){}}await sb.from('tree_photos').delete().eq('id',pid);loadPhotos(tid);});
+  box.querySelectorAll('.capdate').forEach(c=>c.onclick=async()=>{const pid=c.dataset.pid;const row=data.find(x=>x.id===pid)||{};const nv=prompt('撮影日を入力（YYYY-MM-DD。空欄で「不明」）',row.taken_on||'');if(nv===null)return;const v=nv.trim()===''?null:nv.trim();const {error}=await sb.from('tree_photos').update({taken_on:v}).eq('id',pid);if(error){alert(error.message);return;}loadPhotos(tid);});
+}catch(e){box.innerHTML='<div class="emptyph">写真テーブル未作成のようです（migrate_写真セットアップ.sql を実行してください）</div>';}}
+function markBroken(im){const ph=im.closest('.ph');if(!ph)return;im.style.display='none';if(!ph.querySelector('.phbroken')){const d=document.createElement('div');d.className='phbroken';d.textContent='表示できません';ph.insertBefore(d,ph.firstChild);}}
+let _exifr=null;
+async function getExifr(){if(_exifr!==null)return _exifr;try{_exifr=(await import('https://esm.sh/exifr@7.1.3')).default;}catch(_){_exifr=false;}return _exifr;}
+function toYMD(d){const dt=(d instanceof Date)?d:new Date(d);if(isNaN(dt))return null;const z=n=>String(n).padStart(2,'0');return `${dt.getFullYear()}-${z(dt.getMonth()+1)}-${z(dt.getDate())}`;}
+async function photoTakenDate(file,fallback){try{const ex=await getExifr();if(ex){const d=await ex.parse(file,['DateTimeOriginal','CreateDate','DateTimeDigitized']);const dd=d&&(d.DateTimeOriginal||d.CreateDate||d.DateTimeDigitized);const y=dd?toYMD(dd):null;if(y)return y;}}catch(_){}if(file&&file.lastModified){const y=toYMD(new Date(file.lastModified));if(y)return y;}return fallback||null;}
+function bindPhotoUpload(t){const f=el('dphotofile');if(!f)return;f.onchange=async e=>{const files=[...e.target.files];const box=el('dphotos');if(box)box.innerHTML='<div class="emptyph">アップロード中…</div>';for(const fl of files){const path=`${t.id}/${Date.now()}-${fl.name.replace(/[^\w.\-]/g,'_')}`;const up=await sb.storage.from('tree-photos').upload(path,fl);if(up.error){alert('アップロード失敗: '+up.error.message);continue;}const taken=await photoTakenDate(fl,(el('dphotodate')&&el('dphotodate').value)||null);const {error}=await sb.from('tree_photos').insert({tree_id:t.id,taken_on:taken,storage_path:path,created_by:S.session.user.id});if(error){alert('記録失敗: '+error.message);}}loadPhotos(t.id);};}
+function openLb(u,cap){const lb=el('lb');if(!lb)return;lb.querySelector('img').src=u;const c=el('lbcap');if(c)c.textContent=cap||'';lb.classList.add('on');}
+function closeDrawer(){const d=el('drawer');if(d)d.classList.remove('open');const s=el('scrim');if(s)s.classList.remove('on');document.querySelectorAll('.maparea svg circle.dotsel').forEach(c=>c.classList.remove('dotsel'));}
+
+function parcelCard(f){
+  const ps=f.parcels||[];const total=ps.reduce((a,p)=>a+(+p.area_sqm||0),0);
+  const prows=ps.map(p=>`<tr><td><input data-pid="${p.id}" data-k="chiban" value="${esc(p.chiban||'')}" style="width:84px"></td><td><input data-pid="${p.id}" data-k="chimoku" value="${esc(p.chimoku||'')}" style="width:46px"></td><td><input data-pid="${p.id}" data-k="area_sqm" type="number" value="${p.area_sqm??''}" style="width:78px;text-align:right"></td><td><input data-pid="${p.id}" data-k="owner" value="${esc(p.owner||'')}" style="width:110px"></td><td><button class="del" data-delp="${p.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">筆なし</td></tr>';
+  return `<div class="card"><h2>登記・筆 ／ 圃場情報</h2>
+    <div class="controls"><div class="ctl"><span class="lab">所在</span><input id="m_shozai" value="${esc(f.shozai||'')}" style="width:280px"></div><div class="ctl"><span class="lab">MRV上の扱い</span><input id="m_mrv" value="${esc(f.mrv_status||'')}" style="width:180px"></div><label class="ctl" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="m_rfid" ${f.rfid_managed?'checked':''} style="width:auto"> <span class="lab" style="text-transform:none">RFID管理済</span></label><button class="act gh sm" id="saveMeta">圃場情報を保存</button></div>
+    <table><thead><tr><th>地番</th><th>地目</th><th>地積㎡</th><th>所有者</th><th></th></tr></thead><tbody>${prows}</tbody>
+      <tfoot><tr><td style="font-weight:800">合計 ${ps.length}筆</td><td></td><td class="co2">${fmt(total,0)}</td><td>約${(total/10000).toFixed(2)}ha</td><td></td></tr></tfoot></table>
+    <div class="controls" style="margin-top:10px"><input id="np_chiban" placeholder="地番" style="width:110px"><input id="np_chimoku" placeholder="地目" style="width:70px"><input id="np_area" type="number" placeholder="地積㎡" style="width:90px"><input id="np_owner" placeholder="所有者" style="width:130px"><button class="act sm" id="addParcel">＋ 筆を追加</button></div></div>`;
+}
+
+/* ===== 計測入力（一括） ===== */
+function viewEntry(){
+  const fieldSeg=seg('efield',S.fields.map(x=>[x.id,x.name]),S.entryField);
+  const f=S.fields.find(x=>x.id===S.entryField);let tbl='<p class="lead">圃場を選んでください。</p>';
+  if(f){const trees=S.trees.filter(t=>t.field_id===f.id);
+    const rows=trees.map(t=>{const lm=measFor(t.id,'latest');return `<tr><td>${esc(t.label||t.epc||'')}</td><td>${lm?fmt(lm.height_m,2):'–'} / ${lm?fmt(lm.dbh_cm,1):'–'}</td><td><input data-tid="${t.id}" data-k="h" type="number" step="0.01" style="width:74px;text-align:right"></td><td><input data-tid="${t.id}" data-k="dbh" type="number" step="0.1" style="width:66px;text-align:right"></td><td><input data-tid="${t.id}" data-k="rd" type="number" step="0.1" style="width:66px;text-align:right"></td><td class="co2" id="c_${t.id}">–</td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted)">個体なし</td></tr>';
+    tbl=`<div style="overflow:auto;max-height:60vh"><table><thead><tr><th>記号</th><th>前回 樹高/DBH</th><th>樹高m</th><th>DBHcm</th><th>根元cm</th><th>CO₂kg</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="controls" style="margin-top:12px"><button class="act" id="saveAll">入力分をすべて保存（${trees.length}本中）</button><button class="act gh" id="csvOut">CSV雛形を書き出す</button><label class="act gh" style="cursor:pointer">CSVを取り込む<input id="csvIn" type="file" accept=".csv,text/csv" style="display:none"></label></div><div id="emsg" style="margin-top:8px"></div>`;}
+  return `<div class="controls"><div class="ctl"><span class="lab">圃場</span>${fieldSeg}</div><div class="ctl"><span class="lab">計測日</span><input id="e_date" type="date" value="${S.entryDate}" style="width:160px"></div></div>
+   <div class="card"><h2>計測入力（一括）</h2><p class="lead">上から数値を入力 →「すべて保存」。樹高・DBH・根元径のどれか入っていればCO₂を算定。空欄行は保存しません。</p>${tbl}</div>`;
+}
+
+/* ===== 写真まとめて取込 ===== */
+function viewPhotos(){
+  const fieldSeg=seg('pfield',S.fields.map(x=>[x.id,x.name]),S.entryField);
+  const f=S.fields.find(x=>x.id===S.entryField);
+  const dflt=S.photoDate||(f&&f.planted_date)||new Date().toISOString().slice(0,10);
+  return `<div class="controls">
+     <div class="ctl"><span class="lab">圃場</span>${fieldSeg}</div>
+     <div class="ctl"><span class="lab">撮影日（自動取得・無い時の予備）</span><input id="p_date" type="date" value="${dflt}" style="width:160px"></div>
+     <div class="ctl"><span class="lab">画像ファイル</span><label class="act gh" style="cursor:pointer">ファイルを選ぶ（複数可）<input id="p_files" type="file" accept="image/*" multiple style="display:none"></label></div>
+   </div>
+   <div class="card"><h2>写真まとめて取込</h2>
+     <p class="lead">ファイル名の記号で個体に自動振り分けします（例 <b>A1.jpg</b> → 記号A1）。<b>A1_2.jpg</b> のように同じ記号で複数枚でもOK。EPC名のファイルにも対応。先に Storage に <b>tree-photos</b> バケットを作成し、<b>migrate_写真セットアップ.sql</b> を実行しておいてください。</p>
+     <div id="bulkres"><p class="lead">ファイルを選ぶと、ここに振り分け結果が出ます。</p></div>
+   </div>`;
+}
+function matchTree(fn,trees){const base=fn.replace(/\.[^.]+$/,'').trim();const m=base.match(/^([A-Za-z]+\d+)/);const key=(m?m[1]:base).toUpperCase();let t=trees.find(x=>String(x.label||'').toUpperCase()===key);if(!t)t=trees.find(x=>String(x.epc||'').toUpperCase()===base.toUpperCase());return t||null;}
+function bindPhotosImport(){const fi=el('p_files');if(!fi)return;const pd=el('p_date');if(pd)pd.onchange=()=>{S.photoDate=pd.value;};fi.onchange=e=>{pendingPhotos=[...e.target.files];previewPhotos();};}
+function previewPhotos(){
+  const box=el('bulkres');if(!box)return;
+  const f=S.fields.find(x=>x.id===S.entryField);const trees=S.trees.filter(t=>t.field_id===f.id);
+  const rows=pendingPhotos.map(fl=>({fl,t:matchTree(fl.name,trees)}));
+  const ok=rows.filter(r=>r.t).length,ng=rows.length-ok;
+  const list=rows.map(r=>`<tr><td>${esc(r.fl.name)}</td><td>${r.t?esc(r.t.label||r.t.epc||''):'<span style="color:var(--danger)">未対応</span>'}</td></tr>`).join('');
+  box.innerHTML=`<p class="lead"><b>${rows.length}</b>件選択 ・ 振り分け成功 <b>${ok}</b> ・ 未対応 <b>${ng}</b></p>
+    <div style="overflow:auto;max-height:44vh"><table><thead><tr><th>ファイル名</th><th>振り分け先（記号）</th></tr></thead><tbody>${list}</tbody></table></div>
+    <button class="act" id="p_run" style="margin-top:10px" ${ok?'':'disabled'}>${ok}件を取り込む</button>
+    <div id="p_msg" class="lead" style="margin-top:6px"></div>`;
+  const run=el('p_run');if(run)run.onclick=()=>runPhotosImport(rows.filter(r=>r.t));
+}
+async function runPhotosImport(rows){
+  const date=(el('p_date')&&el('p_date').value)?el('p_date').value:null;
+  const msg=el('p_msg');let done=0,skip=0;
+  const tids=[...new Set(rows.map(r=>r.t.id))];const existing=new Set();
+  for(let i=0;i<tids.length;i+=150){const {data}=await sb.from('tree_photos').select('tree_id,caption').in('tree_id',tids.slice(i,i+150));(data||[]).forEach(p=>existing.add(p.tree_id+'::'+(p.caption||'')));}
+  for(const r of rows){
+    if(existing.has(r.t.id+'::'+r.fl.name)){skip++;continue;}
+    const path=`${r.t.id}/${Date.now()}-${r.fl.name.replace(/[^\w.\-]/g,'_')}`;
+    const up=await sb.storage.from('tree-photos').upload(path,r.fl);
+    if(up.error){if(msg)msg.innerHTML=`<span class="bad">${esc(r.fl.name)}: ${esc(up.error.message)}</span>`;continue;}
+    const taken=await photoTakenDate(r.fl,date);const {error}=await sb.from('tree_photos').insert({tree_id:r.t.id,taken_on:taken,storage_path:path,caption:r.fl.name,created_by:S.session.user.id});
+    if(error){if(msg)msg.innerHTML=`<span class="bad">記録失敗 ${esc(r.fl.name)}: ${esc(error.message)}</span>`;continue;}
+    done++;if(msg)msg.textContent=`取込中… ${done}/${rows.length}`;
+  }
+  if(msg)msg.innerHTML=`<span class="ok">完了：${done}件を取り込みました${skip?`（既存${skip}件はスキップ）`:''}。圃場マップで個体をクリックすると表示されます。</span>`;
+}
+
+/* ===== ダッシュボード ===== */
+const fmtT=n=>(n==null||isNaN(n))?'—':Number(n).toLocaleString('ja-JP');
+async function loadDash(){
+  try{
+  const [fr,tr,mr,er,cr,wr]=await Promise.all([
+    sb.from('fields').select('id,site_id,name,area_sqm,manager,established_on,planted_date').limit(100000),
+    sb.from('trees').select('id,field_id').limit(100000),
+    sb.from('measurements').select('tree_id,measured_on,co2_kg').limit(1000000),
+    sb.from('field_evidence').select('field_id,er_code,status').limit(100000),
+    sb.from('er_catalog').select('code,section').limit(2000),
+    sb.from('work_logs').select('field_id,work_date,cost_yen,status,cost_type').limit(100000),
+  ]);
+  const fields=fr.data||[],trees=tr.data||[],meas=mr.data||[],ev=er.data||[],cat=cr.data||[],wls=wr.data||[];
+  const wcost={},wplan={},cMonth={},cType={};wls.forEach(w=>{const v=+w.cost_yen||0;if(w.status==='planned'){wplan[w.field_id]=(wplan[w.field_id]||0)+v;return;}wcost[w.field_id]=(wcost[w.field_id]||0)+v;if(w.work_date){const ym=String(w.work_date).slice(0,7);cMonth[ym]=(cMonth[ym]||0)+v;}const ct=w.cost_type||'その他';cType[ct]=(cType[ct]||0)+v;});
+  const t2f={},tfc={};trees.forEach(t=>{t2f[t.id]=t.field_id;tfc[t.field_id]=(tfc[t.field_id]||0)+1;});
+  const mset={},mlatest={},mco2={};
+  meas.forEach(m=>{const fid=t2f[m.tree_id];if(!fid)return;(mset[fid]=mset[fid]||new Set()).add(m.tree_id);if(m.measured_on&&(!mlatest[fid]||String(m.measured_on)>mlatest[fid]))mlatest[fid]=String(m.measured_on);if(m.co2_kg!=null)mco2[fid]=(mco2[fid]||0)+Number(m.co2_kg);});
+  const c2s={};cat.forEach(c=>c2s[c.code]=c.section);
+  const evf={},sec={};
+  ev.forEach(e=>{const a=evf[e.field_id]=evf[e.field_id]||{done:0,collecting:0,todo:0,total:0};a.total++;a[e.status]=(a[e.status]||0)+1;const sn=c2s[e.er_code]||'その他';const b=sec[sn]=sec[sn]||{done:0,collecting:0,todo:0,total:0};b.total++;b[e.status]=(b[e.status]||0)+1;});
+  const sname={},sidx={};S.sites.forEach((s,i)=>{sname[s.id]=s.name;sidx[s.id]=i;});
+  const F=fields.map(f=>{const e0=evf[f.id]||{done:0,collecting:0,todo:0,total:51};const total=e0.total||51;const measured=mset[f.id]?mset[f.id].size:0;return{site_id:f.site_id,site:sname[f.site_id]||f.site_id,name:f.name,manager:f.manager||null,established:f.established_on||f.planted_date||null,area:f.area_sqm,trees:tfc[f.id]||0,measured,latest:mlatest[f.id]||null,co2:(mco2[f.id]||0)/1000,cost:wcost[f.id]||0,costPlan:wplan[f.id]||0,done:e0.done||0,collecting:e0.collecting||0,todo:e0.todo||0,evtotal:total,pct:((e0.done||0)+(e0.collecting||0)*0.5)/total*100};});
+  F.sort((a,b)=>((sidx[a.site_id]??9)-(sidx[b.site_id]??9))||String(a.name).localeCompare(b.name,'ja'));
+  const sections=Object.entries(sec).map(([k,v])=>({section:k,done:v.done,collecting:v.collecting,todo:v.todo,total:v.total})).sort((a,b)=>(parseInt(a.section)||99)-(parseInt(b.section)||99));
+  S.dash={fields:F,sections,costMonthly:cMonth,costByType:cType,at:new Date()};
+  }catch(e){S.dash={error:String((e&&e.message)||e),fields:[],sections:[],at:new Date()};}
+}
+function viewDash(){
+  if(!S.dash){loadDash().then(()=>render()).catch(()=>render());return `<div class="card"><p class="lead">ダッシュボードを集計中…</p></div>`;}
+  if(S.dash.error){return `<div class="card"><h2>ダッシュボード</h2><p class="bad">集計エラー：${esc(S.dash.error)}</p><p class="lead">「更新」で再試行できます。</p><button class="act gh sm" id="dashRefresh">更新</button></div>`;}
+  const D=S.dash,F=D.fields;
+  const tT=F.reduce((a,f)=>a+f.trees,0),tM=F.reduce((a,f)=>a+f.measured,0),tC=F.reduce((a,f)=>a+f.co2,0);
+  const tCost=F.reduce((a,f)=>a+f.cost,0),tPlan=F.reduce((a,f)=>a+f.costPlan,0);
+  const eD=F.reduce((a,f)=>a+f.done,0),eC=F.reduce((a,f)=>a+f.collecting,0),eTot=F.reduce((a,f)=>a+f.evtotal,0)||1;
+  const evPct=(eD+eC*0.5)/eTot*100;
+  const at=D.at.toLocaleString('ja-JP',{hour12:false});
+  const kpis=[
+    ['管理拠点',String(S.sites.length),'拠点',S.sites.map(s=>s.name.replace(/（.*/,'')).join('・')],
+    ['圃場数',String(F.length),'圃場','全拠点'],
+    ['登録個体',fmtT(tT),'本','全圃場合計'],
+    ['測定済個体',fmtT(tM),'本',`測定率 ${tT?Math.round(tM/tT*100):0}%`],
+    ['推定CO₂(記録分)',tC.toFixed(3),'t','co2_kg 記録分のみ'],
+    ['証拠整備率',evPct.toFixed(1),'%',`整備済 ${eD}・収集中 ${eC} / ${eTot}`],
+    ['作業費(実績)','¥'+tCost.toLocaleString('ja-JP'),'',tPlan?('予定 ¥'+tPlan.toLocaleString('ja-JP')):'作業費合計'],
+  ];
+  const rollup=S.sites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.reduce((a,f)=>a+f.pct,0)/fs.length;
+    return `<tr><td><span class="spill">${esc(s.name)}</span></td><td class="num">${fs.length}</td><td class="num">${fmtT(tr)}</td><td class="num">${fmtT(me)}</td><td class="num">${co.toFixed(3)} t</td><td class="num">${cost?'¥'+cost.toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${pc}%;background:var(--dmoss)"></i></div><span class="dmuted" style="font-size:12px">${pc.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  const maxTrees=Math.max(...F.map(f=>f.trees),1);
+  const bars=S.sites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0);
+    return `<div class="fb-site">${esc(s.name)}　<span class="dmuted" style="font-weight:400">個体 ${fmtT(tr)}・測定済 ${fmtT(me)}</span></div>`+fs.map(f=>{const mW=f.measured/maxTrees*100,rW=(f.trees-f.measured)/maxTrees*100;const val=f.trees===0?`<span class="fb-empty">植樹前</span>`:`<b>${fmtT(f.trees)}</b><small> 本</small><br><small>測定 ${fmtT(f.measured)}（${Math.round(f.measured/f.trees*100)}%）</small>`;
+      return `<div class="fb-row"><div class="fb-name" title="${esc(f.name)}">${esc(f.name)}</div><div class="fb-track"><i style="width:${mW}%;background:var(--dfor2)"></i><i style="width:${rW}%;background:#cfe0c4"></i></div><div class="fb-val">${val}</div></div>`;}).join('');}).join('');
+  const secs=D.sections.map(s=>{const d=s.done/s.total*100,c=s.collecting/s.total*100,pc=(s.done+s.collecting*0.5)/s.total*100;
+    return `<div class="sec-row"><div class="nm">${esc(s.section)}</div><div class="dbar"><i style="width:${d}%;background:var(--dok)"></i><i style="width:${c}%;background:var(--dwarn)"></i></div><div class="pc">${pc.toFixed(0)}% <span class="dmuted">(${s.done}/${s.total})</span></div></div>`;}).join('');
+  const ctColor={'人件費':'#2e573c','資材費':'#6b8e5a','外注費':'#c8742d','委託費':'#4d80e4','種苗費':'#9b5de5','その他':'#9a9384'};
+  const months=Object.keys(D.costMonthly||{}).sort();
+  const maxM=Math.max(1,...months.map(m=>D.costMonthly[m]));
+  const monthly=months.length?months.map(m=>{const v=D.costMonthly[m];const h=Math.max(2,Math.round(v/maxM*120));return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;min-width:30px"><div class="dmuted" style="font-size:9px">${v?'¥'+(v/1000).toFixed(0)+'k':''}</div><div title="${m}：¥${v.toLocaleString('ja-JP')}" style="width:62%;height:${h}px;background:var(--dfor2);border-radius:4px 4px 0 0"></div><div class="dmuted" style="font-size:10px">${m.slice(2)}</div></div>`;}).join(''):'<span class="dmuted">データなし</span>';
+  const types=Object.entries(D.costByType||{}).sort((a,b)=>b[1]-a[1]);
+  const totType=types.reduce((a,b)=>a+b[1],0)||1;
+  const typeRows=types.length?types.map(([t,v])=>`<div class="sec-row" style="grid-template-columns:80px 1fr 100px"><div class="nm">${esc(t)}</div><div class="dbar"><i style="width:${v/totType*100}%;background:${ctColor[t]||'#9a9384'}"></i></div><div class="pc">¥${v.toLocaleString('ja-JP')}</div></div>`).join(''):'<span class="dmuted">データなし</span>';
+  const ftab=F.map(f=>{const todoM=f.trees>0&&f.measured===0;return `<tr><td><span class="dmuted" style="font-size:12px">${esc(f.site)}</span></td><td><strong>${esc(f.name)}</strong>${f.established?`<div class="dmuted" style="font-size:11px">開設 ${f.established}</div>`:''}</td><td class="dmuted" style="font-size:12px">${esc(f.manager||'—')}</td><td class="num">${fmtT(f.area)}</td><td class="num">${fmtT(f.trees)}</td><td class="num">${f.measured?fmtT(f.measured):'<span class="dmuted">0</span>'}</td><td class="dmuted">${f.latest||(todoM?'<span style="color:var(--dwarn)">測定待ち</span>':(f.trees===0?'植樹前':'—'))}</td><td class="num">${f.co2?f.co2.toFixed(3)+' t':'—'}</td><td class="num">${f.cost?'¥'+Number(f.cost).toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${f.done/f.evtotal*100}%;background:var(--dok)"></i><i style="width:${f.collecting/f.evtotal*100}%;background:var(--dwarn)"></i></div><span class="dmuted" style="font-size:12px">${f.pct.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  return `<div class="dashx">
+   <div class="dhead"><h2>全国圃場 ダッシュボード</h2><span class="en">Japaulownia</span><button class="upd" id="dashRefresh">更新</button></div>
+   <div class="dsub">Supabase ライブ集計 ・ 取得 <b>${at}</b> ・ 同一ログインで統合</div>
+   <div class="kpi-grid">${kpis.map(([l,v,u,s])=>`<div class="kpi"><div class="lab">${l}</div><div class="val">${v}<small>${u}</small></div><div class="sub2">${esc(s)}</div></div>`).join('')}</div>
+   <div class="dpanel"><div class="dpanel-h"><h3>拠点別サマリー</h3><span class="count">${S.sites.length}拠点 / ${F.length}圃場</span></div><div class="dpanel-b"><table><thead><tr><th>拠点</th><th class="num">圃場</th><th class="num">個体</th><th class="num">測定済</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>平均証拠整備率</th></tr></thead><tbody>${rollup}</tbody></table></div></div>
+   <div class="two-col">
+     <div class="dpanel"><div class="dpanel-h"><h3>圃場別 個体数と測定状況</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dfor2)"></i>測定済</span><span><i style="background:#cfe0c4"></i>未測定</span><span class="dmuted">バー長＝登録個体数</span></div>${bars}</div></div>
+     <div class="dpanel"><div class="dpanel-h"><h3>証拠台帳 セクション別 進捗</h3></div><div class="dpanel-b"><div class="dlegend"><span><i style="background:var(--dok)"></i>整備済</span><span><i style="background:var(--dwarn)"></i>収集中</span><span><i style="background:var(--dline)"></i>未着手</span></div>${secs}</div></div>
+   </div>
+   <div class="two-col">
+     <div class="dpanel"><div class="dpanel-h"><h3>月次 費用推移（実績）</h3></div><div class="dpanel-b"><div style="display:flex;align-items:flex-end;gap:6px;height:152px;padding-top:6px">${monthly}</div></div></div>
+     <div class="dpanel"><div class="dpanel-h"><h3>科目別 費用（実績）</h3></div><div class="dpanel-b">${typeRows}</div></div>
+   </div>
+   <div class="dpanel"><div class="dpanel-h"><h3>圃場一覧</h3><span class="count">${F.length}圃場</span></div><div class="dpanel-b" style="padding:0"><table><thead><tr><th>拠点</th><th>圃場</th><th>管理者</th><th class="num">面積㎡</th><th class="num">個体</th><th class="num">測定済</th><th>最新測定</th><th class="num">推定CO₂</th><th class="num">作業費</th><th>証拠整備率</th></tr></thead><tbody>${ftab}</tbody></table></div><div class="dpanel-b" style="border-top:1px solid var(--dline)"><div class="dnote">※ 推定CO₂は measurements.co2_kg の記録分のみの合計（未入力の測定が多いため実吸収量はこれより大きい想定）。証拠整備率＝（整備済＋収集中×0.5）÷項目数。</div></div></div>
+  </div>`;
+}
+
+/* ===== 作業・費用 ===== */
+function freqDays(fr){fr=fr||'';if(/随時|発見時|発生時|発生|時/.test(fr)&&!/月|週|半年|四半期|年/.test(fr))return null;if(/四半期/.test(fr))return 90;if(/半年/.test(fr))return 180;if(/年1回|年１回/.test(fr))return 365;if(/毎週|週1|週１/.test(fr))return 7;return 30;}
+function wlSopName(c){const s=(S.sops||[]).find(x=>x.code===c);return s?s.name:(c||'');}
+function viewWork(){
+  if(!S.fields.length) return `<div class="card"><p class="lead">この拠点に圃場がありません。</p></div>`;
+  const fieldSeg=seg('wfield',S.fields.map(x=>[x.id,x.name]),S.entryField);
+  const f=S.fields.find(x=>x.id===S.entryField)||S.fields[0];
+  const logs=(S.worklogs||[]).filter(w=>w.field_id===f.id);
+  const today=new Date().toISOString().slice(0,10);
+  const wm=S.workMonth||today.slice(0,7);const [wy,wmo]=wm.split('-').map(Number);
+  const startDow=new Date(wy,wmo-1,1).getDay();const dim=new Date(wy,wmo,0).getDate();
+  const logByDate={};logs.forEach(w=>{if(w.work_date)(logByDate[w.work_date]=logByDate[w.work_date]||[]).push(w);});
+  const sopDue={};(S.sops||[]).forEach(s=>{const d=freqDays(s.frequency);if(d==null)return;const ls=logs.filter(w=>w.sop_code===s.code&&w.status!=='planned').map(w=>w.work_date).filter(Boolean).sort();const last=ls.length?ls[ls.length-1]:null;if(!last)return;const nd=new Date(last);nd.setDate(nd.getDate()+d);const ds=nd.toISOString().slice(0,10);(sopDue[ds]=sopDue[ds]||[]).push(s.name);});
+  const dow=['日','月','火','水','木','金','土'];
+  let cells='';for(let i=0;i<startDow;i++)cells+='<div class="calcell calempty"></div>';
+  for(let dd=1;dd<=dim;dd++){const ds=`${wy}-${String(wmo).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;const isT=ds===today;
+    const items=(logByDate[ds]||[]).map(w=>{const lbl=w.sop_code?wlSopName(w.sop_code):(w.category||'作業');const col=w.status==='planned'?'#c8742d':'#3a7d52';const tip=esc(lbl)+(w.worker?(' / '+esc(w.worker)):'')+(w.cost_yen!=null?(' / ¥'+Number(w.cost_yen).toLocaleString('ja-JP')):'');return `<div class="calchip" style="background:${col}" title="${tip}">${w.status==='planned'?'予 ':''}${esc(lbl)}</div>`;}).join('');
+    const dues=(sopDue[ds]||[]).map(n=>`<div class="calchip" style="background:transparent;color:#b3502a;border:1px dashed #c8742d" title="必須作業の目安：${esc(n)}">要 ${esc(n)}</div>`).join('');
+    cells+=`<div class="calcell${isT?' caltoday':''}"><div class="caldnum">${dd}</div>${items}${dues}</div>`;}
+  const calHtml=`<div class="card"><h2>${esc(f.name)} ・ 作業カレンダー</h2>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="act gh sm" data-wm="prev">← 前月</button>
+      <strong style="min-width:96px;text-align:center">${wy}年${wmo}月</strong>
+      <button class="act gh sm" data-wm="next">翌月 →</button>
+      <button class="act gh sm" data-wm="today">今月</button>
+      <span class="lead" style="margin-left:auto;font-size:11px"><span style="color:#3a7d52;font-weight:800">■</span> 実施　<span style="color:#c8742d;font-weight:800">■</span> 予定　<span style="color:#b3502a;font-weight:800">▢</span> 必須作業の目安</span>
+    </div>
+    <div class="calgrid">${dow.map((d,i)=>`<div class="caldow ${i===0?'sun':i===6?'sat':''}">${d}</div>`).join('')}${cells}</div></div>`;
+  const sopRows=(S.sops||[]).map(s=>{
+    const ls=logs.filter(w=>w.sop_code===s.code&&w.status!=='planned').map(w=>w.work_date).filter(Boolean).sort();
+    const last=ls.length?ls[ls.length-1]:null;const d=freqDays(s.frequency);
+    let badge,color,next;
+    if(d==null){badge='随時';color='#9a9384';next='—';}
+    else if(!last){badge='未実施';color='#c0392b';next='今すぐ';}
+    else{const nd=new Date(last);nd.setDate(nd.getDate()+d);next=nd.toISOString().slice(0,10);if(today>next){badge='要実施';color='#c8742d';}else{badge='OK';color='#3a7d52';}}
+    return `<tr><td><strong>${esc(s.name)}</strong></td><td style="font-size:12px;color:var(--muted)">${esc(s.frequency||'')}</td><td>${last||'<span style="color:var(--muted)">なし</span>'}</td><td>${next}</td><td><span style="background:${color};color:#fff;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:700">${badge}</span></td></tr>`;
+  }).join('');
+  const logRows=logs.map(w=>`<tr><td>${w.work_date||''}</td><td>${esc(w.sop_code?wlSopName(w.sop_code):(w.category||'—'))}</td><td>${esc(w.worker||'—')}</td><td style="text-align:right">${w.persons??'—'}</td><td style="text-align:right">${w.hours??'—'}</td><td>${esc(w.materials||'—')}</td><td style="text-align:right">${w.cost_yen!=null?'¥'+Number(w.cost_yen).toLocaleString('ja-JP'):'—'}</td><td>${w.status==='planned'?'<span style="background:#c8742d;color:#fff;padding:1px 8px;border-radius:20px;font-size:11px">予定</span>':'<span style="background:#3a7d52;color:#fff;padding:1px 8px;border-radius:20px;font-size:11px">実施</span>'}</td><td><button class="act gh sm" data-delwl="${w.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="9" style="color:var(--muted)">まだ作業記録がありません。下のフォームから追加できます。</td></tr>';
+  const costDone=logs.filter(w=>w.status!=='planned').reduce((a,w)=>a+(+w.cost_yen||0),0);
+  const costPlan=logs.filter(w=>w.status==='planned').reduce((a,w)=>a+(+w.cost_yen||0),0);
+  const sopOpts=`<option value="">（その他／SOP以外）</option>`+(S.sops||[]).map(s=>`<option value="${esc(s.code)}">${esc(s.name)}</option>`).join('');
+  const staffOpts=(S.staff||[]).filter(s=>s.active!==false).map(s=>`<option value="${esc(s.name)}">`).join('');
+  const ctypeOpts=['人件費','資材費','外注費','委託費','種苗費','その他'].map(x=>`<option value="${x}">`).join('');
+  const siteOpts=S.sites.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  const staffRows=(S.staff||[]).map(s=>`<tr><td><strong>${esc(s.name)}</strong></td><td>${esc(s.role||'—')}</td><td>${esc((S.sites.find(x=>x.id===s.site_id)||{}).name||s.site_id||'—')}</td><td>${esc(s.phone||'—')}</td><td>${s.active===false?'<span style="color:var(--muted)">停止</span>':'<span style="color:#3a7d52;font-weight:700">稼働</span>'}</td><td><button class="act gh sm" data-stafftoggle="${s.id}" data-act="${s.active===false?'0':'1'}">${s.active===false?'再開':'停止'}</button> <button class="act gh sm" data-delstaff="${s.id}">削除</button></td></tr>`).join('')||'<tr><td colspan="6" style="color:var(--muted)">担当者が未登録です。下で追加できます。</td></tr>';
+  const sopMasterRows=(S.sops||[]).map(s=>`<tr><td class="mono" style="font-size:11px">${esc(s.code)}</td><td><input id="sn_${esc(s.code)}" value="${esc(s.name||'')}" style="width:140px"></td><td><input id="sf_${esc(s.code)}" value="${esc(s.frequency||'')}" style="width:150px"></td><td><input id="sp_${esc(s.code)}" value="${esc(s.purpose||'')}" style="width:190px"></td><td><button class="act gh sm" data-sopsave="${esc(s.code)}">保存</button> <button class="act gh sm" data-delsop="${esc(s.code)}">削除</button></td></tr>`).join('')||'<tr><td colspan="5" style="color:var(--muted)">未定義です。下で追加できます。</td></tr>';
+  const sopMasterCard=`<div class="card"><h2>必須作業の定義（SOPマスタ）</h2><p class="lead">ここで定義した作業が、上の「実施状況」・カレンダーの目安・作業入力の選択肢になります。頻度に「毎月／月1回／四半期毎／半年毎／年1回／週1／随時」等の語を含めると次回目安を自動計算します。</p>
+    <table><thead><tr><th>コード</th><th>作業名</th><th>頻度</th><th>目的</th><th></th></tr></thead><tbody>${sopMasterRows}</tbody></table>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="controls">
+        <div class="ctl"><span class="lab">作業名</span><input id="newsop_name" style="width:150px"></div>
+        <div class="ctl"><span class="lab">頻度</span><input id="newsop_freq" style="width:160px" placeholder="毎月 など"></div>
+        <div class="ctl"><span class="lab">目的(任意)</span><input id="newsop_purpose" style="width:190px"></div>
+        <button class="act" id="newsop_add" style="align-self:flex-end">作業を定義に追加</button>
+      </div>
+      <div id="sopmsg" style="margin-top:6px"></div>
+    </div></div>`;
+  return `<div class="card"><h2>作業・費用</h2><p class="lead">圃場を選び、開設・管理者・必須作業・作業履歴・費用を管理します。</p>${fieldSeg}</div>
+  <div class="card"><h2>${esc(f.name)} ・ 基本情報</h2>
+    <div class="controls">
+      <div class="ctl"><span class="lab">開設日</span><input type="date" id="wf_est" value="${f.established_on||''}"></div>
+      <div class="ctl"><span class="lab">植樹日</span><input type="date" id="wf_plant" value="${f.planted_date||''}"></div>
+      <div class="ctl"><span class="lab">管理者</span><input id="wf_mgr" value="${esc(f.manager||'')}" placeholder="担当者・管理者名" style="width:190px"></div>
+      <div class="ctl"><span class="lab">所在</span><input id="wf_shozai" value="${esc(f.shozai||'')}" style="width:240px"></div>
+      <div class="ctl"><span class="lab">面積㎡</span><input id="wf_area" type="number" step="0.1" value="${f.area_sqm??''}" style="width:110px"></div>
+      <div class="ctl"><span class="lab">MRV状態</span><input id="wf_mrv" value="${esc(f.mrv_status||'')}" style="width:170px"></div>
+      <button class="act" id="wf_save" style="align-self:flex-end">基本情報を保存</button>
+    </div>
+    <div class="sub" style="border:0;margin-top:8px">所有者：${esc(f.owner_summary||'—')}　・　登録個体：${S.trees.filter(t=>t.field_id===f.id).length}本</div>
+  </div>
+  ${calHtml}
+  <div class="card"><h2>必須作業（SOP）と実施状況</h2>
+    <table><thead><tr><th>作業</th><th>頻度</th><th>最終実施</th><th>次回目安</th><th>状態</th></tr></thead><tbody>${sopRows||'<tr><td colspan="5" style="color:var(--muted)">SOP未登録</td></tr>'}</tbody></table>
+  </div>
+  ${sopMasterCard}
+  <div class="card"><h2>作業履歴・費用</h2>
+    <div class="stats"><div class="stat"><div class="k">実績費用</div><div class="v">¥${costDone.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">予定費用</div><div class="v">¥${costPlan.toLocaleString('ja-JP')}</div></div><div class="stat"><div class="k">記録件数</div><div class="v">${logs.length}<small>件</small></div></div></div>
+    <table><thead><tr><th>日付</th><th>作業</th><th>担当</th><th class="num">人数</th><th class="num">時間</th><th>資材</th><th class="num">費用</th><th>区分</th><th></th></tr></thead><tbody>${logRows}</tbody></table>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+      <h2 style="font-size:14px">作業を追加</h2>
+      <div class="controls">
+        <div class="ctl"><span class="lab">日付</span><input type="date" id="wl_date" value="${today}"></div>
+        <div class="ctl"><span class="lab">作業(SOP)</span><select id="wl_sop">${sopOpts}</select></div>
+        <div class="ctl"><span class="lab">内容(SOP以外)</span><input id="wl_cat" style="width:160px"></div>
+        <div class="ctl"><span class="lab">担当</span><input id="wl_worker" list="stafflist" value="${esc(f.manager||'')}" style="width:130px"></div>
+        <div class="ctl"><span class="lab">科目</span><input id="wl_ctype" list="ctypelist" value="人件費" style="width:100px"></div>
+        <div class="ctl"><span class="lab">人数</span><input type="number" id="wl_persons" step="1" min="0" style="width:70px"></div>
+        <div class="ctl"><span class="lab">時間h</span><input type="number" id="wl_hours" step="0.5" min="0" style="width:80px"></div>
+        <div class="ctl"><span class="lab">資材</span><input id="wl_materials" style="width:150px"></div>
+        <div class="ctl"><span class="lab">費用(円)</span><input type="number" id="wl_cost" step="1" min="0" style="width:120px"></div>
+        <div class="ctl"><span class="lab">区分</span><select id="wl_status"><option value="done">実施</option><option value="planned">予定</option></select></div>
+        <button class="act" id="wl_add" style="align-self:flex-end">作業を記録</button>
+      </div>
+      <div id="wlmsg" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <datalist id="stafflist">${staffOpts}</datalist><datalist id="ctypelist">${ctypeOpts}</datalist>
+  <div class="card"><h2>担当者マスタ</h2><p class="lead">作業の「担当」入力候補になります（稼働中のみ）。</p>
+    <table><thead><tr><th>氏名</th><th>役割</th><th>拠点</th><th>連絡先</th><th>状態</th><th></th></tr></thead><tbody>${staffRows}</tbody></table>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="controls">
+        <div class="ctl"><span class="lab">氏名</span><input id="st_name" style="width:140px"></div>
+        <div class="ctl"><span class="lab">役割</span><input id="st_role" style="width:130px" placeholder="現場主任 など"></div>
+        <div class="ctl"><span class="lab">拠点</span><select id="st_site"><option value="">（全社/未指定）</option>${siteOpts}</select></div>
+        <div class="ctl"><span class="lab">連絡先</span><input id="st_phone" style="width:140px"></div>
+        <button class="act" id="st_add" style="align-self:flex-end">担当者を追加</button>
+      </div>
+      <div id="stmsg" style="margin-top:6px"></div>
+    </div>
+  </div>`;
+}
+
+/* ===== カメラ計測（標尺・基準スケール法） ===== */
+const CAM={img:null,file:null,pts:[],fieldId:null,treeId:null};
+function camTreesFor(fid){return (S.trees||[]).filter(t=>t.field_id===fid).sort((a,b)=>String(a.label||a.epc||'').localeCompare(String(b.label||b.epc||''),'ja',{numeric:true}));}
+function viewCam(){
+  if(!S.fields.length) return `<div class="card"><p class="lead">この拠点に圃場がありません。</p></div>`;
+  const fid=(CAM.fieldId&&S.fields.find(f=>f.id===CAM.fieldId))?CAM.fieldId:(S.fields[0]&&S.fields[0].id);CAM.fieldId=fid;
+  const trees=camTreesFor(fid);
+  if(!CAM.treeId||!trees.find(t=>t.id===CAM.treeId))CAM.treeId=trees[0]?trees[0].id:null;
+  const fieldOpts=S.fields.map(f=>`<option value="${f.id}" ${f.id===fid?'selected':''}>${esc(f.name)}</option>`).join('');
+  const treeOpts=trees.map(t=>`<option value="${t.id}" ${t.id===CAM.treeId?'selected':''}>${esc(t.label||t.epc||t.id.slice(0,6))}</option>`).join('')||'<option value="">（個体なし）</option>';
+  const today=new Date().toISOString().slice(0,10);
+  return `<div class="card"><h2>カメラ計測（標尺で樹高自動）</h2>
+    <p class="lead">標尺を苗のそばに立てて撮影し、写真上を <b>①標尺の目盛りA → ②目盛りB → ③苗の根元 → ④苗の先端</b> の順にタップ。A–B間の実長(m)を入れると樹高を自動計算します。太さ(DBH)は別途手入力。高木で標尺に収まらない場合は角度法（今後追加）に切替推奨。</p>
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:520px">
+      <div><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">圃場</div><select id="cam_field" style="width:100%">${fieldOpts}</select></div>
+      <div><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">個体(TreeID/記号)</div><select id="cam_tree" style="width:100%">${treeOpts}</select></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px"><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">計測日</div><input type="date" id="cam_date" value="${today}" style="width:100%"></div>
+        <div style="flex:1;min-width:140px"><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">標尺A–B間の実長(m)</div><input type="number" id="cam_reflen" step="0.01" value="1.00" style="width:100%"></div>
+      </div>
+    </div>
+    <div style="margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <button type="button" class="act" id="cam_shoot">📷 撮影</button>
+      <button type="button" class="act gh" id="cam_pick">🖼 画像を選ぶ</button>
+      <button type="button" class="act gh sm" id="cam_undo">1点戻す</button><button type="button" class="act gh sm" id="cam_reset">タップやり直し</button>
+      <input id="cam_file" type="file" accept="image/*" capture="environment" style="display:none">
+      <input id="cam_file2" type="file" accept="image/*" style="display:none"></div>
+    <div style="position:relative;max-width:520px"><canvas id="camcanvas" style="width:100%;display:block;border:1px solid var(--line);border-radius:12px;background:#0d0d0d;touch-action:none"></canvas>
+      <div id="cam_hint" style="position:absolute;left:8px;top:8px;background:rgba(0,0,0,.62);color:#fff;font-size:12px;padding:3px 8px;border-radius:8px">写真を選ぶと表示されます</div></div>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="k">自動算出 樹高</div><div class="v" id="cam_height">–<small>m</small></div></div>
+      <div class="stat"><div class="k">太さ DBH(cm)</div><div class="v"><input type="number" id="cam_dbh" step="0.1" style="width:90px;font-size:18px" placeholder="手入力"></div></div>
+      <div class="stat"><div class="k">推定CO₂</div><div class="v" id="cam_co2">–<small>kg</small></div></div>
+    </div>
+    <div style="margin-top:12px"><button class="act" id="cam_save">この個体に計測を保存</button> <span id="cam_msg"></span></div>
+  </div>`;
+}
+function camXY(e,c){const r=c.getBoundingClientRect();return [(e.clientX-r.left)*(c.width/r.width),(e.clientY-r.top)*(c.height/r.height)];}
+function camFit(){const c=el('camcanvas');if(!c||!CAM.img)return;const m=1600,iw=CAM.img.naturalWidth,ih=CAM.img.naturalHeight,s=Math.min(1,m/Math.max(iw,ih));c.width=Math.round(iw*s);c.height=Math.round(ih*s);}
+function drawCam(){const c=el('camcanvas');if(!c||!CAM.img)return;const ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(CAM.img,0,0,c.width,c.height);const cols=['#4d80e4','#4d80e4','#e4572e','#e4572e'],labs=['A','B','根','先'],R=Math.max(7,c.width*0.012),LW=Math.max(2,c.width*0.005);CAM.pts.forEach((p,i)=>{ctx.beginPath();ctx.fillStyle=cols[i];ctx.strokeStyle='#fff';ctx.lineWidth=LW;ctx.arc(p[0],p[1],R,0,7);ctx.fill();ctx.stroke();ctx.fillStyle='#fff';ctx.font=`bold ${Math.max(16,c.width*0.032)}px sans-serif`;ctx.fillText(labs[i],p[0]+R+4,p[1]-4);});const line=(a,b,col)=>{if(!a||!b)return;ctx.strokeStyle=col;ctx.lineWidth=LW;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();};line(CAM.pts[0],CAM.pts[1],'#4d80e4');line(CAM.pts[2],CAM.pts[3],'#e4572e');}
+function camHeight(){if(CAM.pts.length<4)return null;const d=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);const refPx=d(CAM.pts[0],CAM.pts[1]),treePx=d(CAM.pts[2],CAM.pts[3]),refLen=parseFloat((el('cam_reflen')||{}).value)||0;if(refPx<=0||!refLen)return null;return refLen*treePx/refPx;}
+function camUpdate(){const h=camHeight();const hp=el('cam_height');if(hp)hp.innerHTML=(h!=null?h.toFixed(2):'–')+'<small>m</small>';const dbh=(el('cam_dbh')||{}).value;const co=co2({height_m:h,dbh_cm:dbh});const cp=el('cam_co2');if(cp)cp.innerHTML=(co?fmt(co.kg,2):'–')+'<small>kg</small>';const hint=el('cam_hint');if(hint)hint.textContent=!CAM.img?'写真を選ぶと表示されます':(CAM.pts.length<4?`タップ ${CAM.pts.length}/4：${['①標尺A','②標尺B','③苗の根元','④苗の先端'][CAM.pts.length]||''}`:(h!=null?`樹高 ${h.toFixed(2)}m`:'A–B実長を入力'));}
+async function camSave(){const msg=el('cam_msg'),set=h=>{if(msg)msg.innerHTML=h;};
+  if(!CAM.treeId){set('<span class="bad">個体を選んでください。</span>');return;}
+  if(!CAM.file){set('<span class="bad">写真を撮影／選択してください。</span>');return;}
+  const date=el('cam_date').value;if(!date){set('<span class="bad">計測日を入れてください。</span>');return;}
+  const h=camHeight(),dbhv=el('cam_dbh').value;set('<span class="lead">保存中…</span>');
+  const path=`${CAM.treeId}/${Date.now()}-cam.jpg`;
+  const up=await sb.storage.from('tree-photos').upload(path,CAM.file);
+  if(up.error){set('<span class="bad">写真アップロード失敗：'+esc(up.error.message)+'</span>');return;}
+  await sb.from('tree_photos').insert({tree_id:CAM.treeId,taken_on:date,storage_path:path,caption:'カメラ計測',created_by:S.session.user.id});
+  const m={tree_id:CAM.treeId,measured_on:date,height_m:h!=null?+h.toFixed(3):null,dbh_cm:dbhv===''?null:+dbhv,root_d_cm:null,photo_path:path};
+  const c=co2(m);m.co2_kg=c?c.kg:null;m.estimated=c?c.est:false;m.created_by=S.session.user.id;
+  await sb.from('measurements').delete().eq('tree_id',CAM.treeId).eq('measured_on',date);
+  const {error}=await sb.from('measurements').insert(m);
+  if(error){set('<span class="bad">計測保存失敗：'+esc(error.message)+'</span>');return;}
+  S.dash=null;await loadSite(S.site);
+  set('<span class="ok">保存しました（樹高 '+(h!=null?h.toFixed(2)+'m':'—')+'／DBH '+(dbhv||'—')+'cm）。続けて別の個体も計測できます。</span>');
+  CAM.file=null;CAM.img=null;CAM.pts=[];const c2=el('camcanvas');if(c2){const cx=c2.getContext('2d');cx&&cx.clearRect(0,0,c2.width,c2.height);}camUpdate();}
+function initCam(){const c=el('camcanvas');if(!c)return;
+  const ff=el('cam_field');if(ff)ff.onchange=()=>{CAM.fieldId=ff.value;CAM.treeId=null;render();};
+  const tf=el('cam_tree');if(tf)tf.onchange=()=>{CAM.treeId=tf.value;};
+  const loadF=fl=>{if(!fl)return;CAM.file=fl;const img=new Image();img.onload=()=>{CAM.img=img;CAM.pts=[];camFit();drawCam();camUpdate();};img.onerror=()=>{const h=el('cam_hint');if(h)h.textContent='画像を表示できませんでした。別の写真でお試しください。';};img.src=URL.createObjectURL(fl);};
+  const cf=el('cam_file');if(cf)cf.onchange=e=>loadF(e.target.files[0]);
+  const cf2=el('cam_file2');if(cf2)cf2.onchange=e=>loadF(e.target.files[0]);
+  const shoot=el('cam_shoot');if(shoot)shoot.onclick=()=>{const i=el('cam_file');if(i)i.click();};
+  const pick=el('cam_pick');if(pick)pick.onclick=()=>{const i=el('cam_file2');if(i)i.click();};
+  c.onpointerdown=e=>{if(!CAM.img||CAM.pts.length>=4)return;e.preventDefault();CAM.pts.push(camXY(e,c));drawCam();camUpdate();};
+  const un=el('cam_undo');if(un)un.onclick=()=>{CAM.pts.pop();drawCam();camUpdate();};
+  const rs=el('cam_reset');if(rs)rs.onclick=()=>{CAM.pts=[];drawCam();camUpdate();};
+  const rl=el('cam_reflen');if(rl)rl.oninput=camUpdate;
+  const db=el('cam_dbh');if(db)db.oninput=camUpdate;
+  const sv=el('cam_save');if(sv)sv.onclick=camSave;
+  if(CAM.img){camFit();drawCam();}camUpdate();}
+
+/* ===== イベント ===== */
+function bind(){
+  if(el('jpmap'))initJpMap();
+  if(el('distwrap')){initDistrictImg();const dsg=el('distsvg');if(dsg)dsg.onclick=distSvgClick;window.onpointermove=distOnMove;window.onpointerup=distOnUp;}
+  if(el('p_files'))bindPhotosImport();
+  if(el('camcanvas'))initCam();
+  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
+  document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
+  document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
+  const det=el('distEditToggle');if(det)det.onclick=distToggleEdit;
+  const du=el('distUndo');if(du)du.onclick=distUndo;
+  const dc=el('distClear');if(dc)dc.onclick=distClearWorking;
+  const dsv=el('distSave');if(dsv)dsv.onclick=distSave;
+  const ddl=el('distDel');if(ddl)ddl.onclick=distDel;
+  const dref=el('dashRefresh');if(dref)dref.onclick=()=>{S.dash=null;render();};
+  const wfs=el('wf_save');if(wfs)wfs.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const a=el('wf_area').value;const {error}=await sb.from('fields').update({established_on:el('wf_est').value||null,planted_date:el('wf_plant').value||null,manager:el('wf_mgr').value||null,shozai:el('wf_shozai').value||null,mrv_status:el('wf_mrv').value||null,area_sqm:a===''?null:+a}).eq('id',f.id);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();};
+  const wla=el('wl_add');if(wla)wla.onclick=async()=>{const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('wl_date').value;if(!date){el('wlmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const p=el('wl_persons').value,h=el('wl_hours').value,c=el('wl_cost').value;const row={field_id:f.id,work_date:date,sop_code:el('wl_sop').value||null,category:el('wl_cat').value||null,worker:el('wl_worker').value||null,persons:p===''?null:+p,hours:h===''?null:+h,materials:el('wl_materials').value||null,cost_yen:c===''?null:+c,status:el('wl_status').value,cost_type:el('wl_ctype').value||null,created_by:S.session.user.id};const {error}=await sb.from('work_logs').insert(row);if(error){el('wlmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.dash=null;await loadSite(S.site);render();};
+  document.querySelectorAll('[data-delwl]').forEach(b=>b.onclick=async()=>{if(!confirm('この作業記録を削除しますか？'))return;const {error}=await sb.from('work_logs').delete().eq('id',b.dataset.delwl);if(error){alert(error.message);return;}S.dash=null;await loadSite(S.site);render();});
+  document.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{const cur=S.workMonth||new Date().toISOString().slice(0,7);let [y,m]=cur.split('-').map(Number);const act=b.dataset.wm;if(act==='today'){S.workMonth=new Date().toISOString().slice(0,7);}else{m+=(act==='next'?1:-1);if(m<1){m=12;y--;}else if(m>12){m=1;y++;}S.workMonth=`${y}-${String(m).padStart(2,'0')}`;}render();});
+  const nsa=el('newsop_add');if(nsa)nsa.onclick=async()=>{const name=el('newsop_name').value.trim();if(!name){el('sopmsg').innerHTML='<span class="bad">作業名を入れてください。</span>';return;}const nums=(S.sops||[]).map(s=>parseInt(String(s.code).replace(/\D/g,''))||0);const code='SOP-'+String(Math.max(0,...nums)+1).padStart(3,'0');const so=Math.max(0,...(S.sops||[]).map(s=>s.sort_order||0))+1;const {error}=await sb.from('sops').insert({code,name,frequency:el('newsop_freq').value||null,purpose:el('newsop_purpose').value||null,sort_order:so});if(error){el('sopmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();};
+  document.querySelectorAll('[data-sopsave]').forEach(b=>b.onclick=async()=>{const c=b.dataset.sopsave;const {error}=await sb.from('sops').update({name:el('sn_'+c).value,frequency:el('sf_'+c).value||null,purpose:el('sp_'+c).value||null}).eq('code',c);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
+  document.querySelectorAll('[data-delsop]').forEach(b=>b.onclick=async()=>{if(!confirm('この必須作業の定義を削除しますか？（過去の作業記録は残ります）'))return;const {error}=await sb.from('sops').delete().eq('code',b.dataset.delsop);if(error){alert(error.message);return;}S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];render();});
+  const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:el('st_site').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
+  document.querySelectorAll('[data-stafftoggle]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('staff').update({active:b.dataset.act!=='1'}).eq('id',b.dataset.stafftoggle);if(error){alert(error.message);return;}await loadStaff();render();});
+  document.querySelectorAll('[data-delstaff]').forEach(b=>b.onclick=async()=>{if(!confirm('この担当者を削除しますか？'))return;const {error}=await sb.from('staff').delete().eq('id',b.dataset.delstaff);if(error){alert(error.message);return;}await loadStaff();render();});
+  const sm=el('saveMeta');if(sm)sm.onclick=async()=>{const {error}=await sb.from('fields').update({shozai:el('m_shozai').value,mrv_status:el('m_mrv').value,rfid_managed:el('m_rfid').checked}).eq('id',S.field);if(error){alert(error.message);return;}await loadSite(S.site);render();};
+  document.querySelectorAll('[data-pid]').forEach(inp=>inp.onchange=async()=>{const id=inp.dataset.pid,k=inp.dataset.k;let v=inp.value;if(k==='area_sqm')v=v===''?null:+v;const {error}=await sb.from('parcels').update({[k]:v}).eq('id',id);if(error){alert(error.message);return;}await loadSite(S.site);render();});
+  document.querySelectorAll('[data-delp]').forEach(b=>b.onclick=async()=>{if(!confirm('削除しますか？'))return;await sb.from('parcels').delete().eq('id',b.dataset.delp);await loadSite(S.site);render();});
+  const ap=el('addParcel');if(ap)ap.onclick=async()=>{const chiban=el('np_chiban').value.trim();if(!chiban){alert('地番を入れてください');return;}const {error}=await sb.from('parcels').insert({field_id:S.field,chiban,chimoku:el('np_chimoku').value,area_sqm:el('np_area').value===''?null:+el('np_area').value,owner:el('np_owner').value});if(error){alert(error.message);return;}await loadSite(S.site);render();};
+  const ed=el('e_date');if(ed)ed.onchange=()=>{S.entryDate=ed.value;};
+  document.querySelectorAll('[data-tid][data-k]').forEach(inp=>inp.oninput=()=>{const t=inp.dataset.tid;const c=co2({height_m:val('h',t),dbh_cm:val('dbh',t),root_d_cm:val('rd',t)});const cell=el('c_'+t);if(cell)cell.textContent=c?(fmt(c.kg,2)+(c.est?'*':'')):'–';});
+  const sa=el('saveAll');if(sa)sa.onclick=saveAll;
+  const co=el('csvOut');if(co)co.onclick=csvOut;
+  const ci=el('csvIn');if(ci)ci.onchange=csvIn;
+}
+async function saveAll(){const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('e_date').value;const trees=S.trees.filter(t=>t.field_id===f.id);const rows=[];trees.forEach(t=>{const h=val('h',t.id),dbh=val('dbh',t.id),rd=val('rd',t.id);if(h===''&&dbh===''&&rd==='')return;const c=co2({height_m:h,dbh_cm:dbh,root_d_cm:rd});rows.push({tree_id:t.id,measured_on:date,height_m:h===''?null:+h,dbh_cm:dbh===''?null:+dbh,root_d_cm:rd===''?null:+rd,co2_kg:c?c.kg:null,estimated:c?c.est:false,created_by:S.session.user.id});});if(!rows.length){el('emsg').innerHTML='<span class="lead">入力された行がありません。</span>';return;}el('emsg').innerHTML='<span class="lead">保存中…</span>';const tids=rows.map(r=>r.tree_id);for(let i=0;i<tids.length;i+=150){await sb.from('measurements').delete().eq('measured_on',date).in('tree_id',tids.slice(i,i+150));}for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('measurements').insert(rows.slice(i,i+200));if(error){el('emsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}}S.dash=null;await loadSite(S.site);render();setTimeout(()=>{const m=el('emsg');if(m)m.innerHTML=`<span class="ok">${rows.length}本分を保存しました（${date}）。</span>`;},50);}
+function csvOut(){const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const trees=S.trees.filter(t=>t.field_id===f.id);const lines=['記号,樹高m,DBHcm,根元cm'].concat(trees.map(t=>`${t.label||t.epc||''},,,`));const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${f.name}_計測雛形.csv`;a.click();}
+function csvIn(e){const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=()=>{const txt=String(r.result).replace(/^\ufeff/,'');const lines=txt.split(/\r?\n/).filter(x=>x.trim());const head=lines.shift();const idx={};head.split(',').forEach((h,i)=>idx[h.trim()]=i);const f=S.fields.find(x=>x.id===S.entryField);const byLabel={};S.trees.filter(t=>t.field_id===f.id).forEach(t=>byLabel[(t.label||'').trim()]=t.id);let n=0;lines.forEach(ln=>{const c=ln.split(',');const label=(c[idx['記号']]||'').trim();const tid=byLabel[label];if(!tid)return;const set=(k,col)=>{const e2=document.querySelector(`[data-tid="${tid}"][data-k="${k}"]`);if(e2&&col!=null&&c[col]!=null&&c[col].trim()!=='')e2.value=c[col].trim();};set('h',idx['樹高m']);set('dbh',idx['DBHcm']);set('rd',idx['根元cm']);const cc=co2({height_m:val('h',tid),dbh_cm:val('dbh',tid),root_d_cm:val('rd',tid)});const cell=el('c_'+tid);if(cell)cell.textContent=cc?fmt(cc.kg,2):'–';n++;});el('emsg').innerHTML=`<span class="ok">${n}行を表に取り込みました。確認して「すべて保存」を押してください。</span>`;};r.readAsText(file);}
+</script>
+</body>
+</html>
