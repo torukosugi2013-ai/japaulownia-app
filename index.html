@@ -160,8 +160,9 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px;paddi
 <div id="root"><div class="center"><div class="mono" style="color:var(--muted)">読み込み中…</div></div></div>
 
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import L from 'https://esm.sh/leaflet@1.9.4';
+let L=null;
+async function ensureL(){if(L&&L.map)return L;for(const u of ['https://esm.sh/leaflet@1.9.4','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/+esm']){try{const m=await import(u);const cand=m.default||m.L||m;if(cand&&cand.map){L=cand;return L;}}catch(_){}}L=null;return null;}
+async function loadCreateClient(){for(const u of ['https://esm.sh/@supabase/supabase-js@2','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm']){try{const m=await import(u);if(m.createClient)return m.createClient;}catch(_){}}return null;}
 const SUPABASE_URL='https://bieamtjesoaimlmrtmfj.supabase.co';   // デプロイ時はここに直書きしてもよい
 const SUPABASE_ANON='sb_publishable_-paeLD0LA0CMmMmDKhXVEg_YN_Y0OGx';
 const LEAF='<svg viewBox="0 0 24 24" fill="none"><path d="M12 21v-6" stroke="#cfe0b8" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15c-3.6 0-5.2-2.2-5.2-4.6C6.8 8.4 8 7.6 8 6c1.4.6 2 1.8 2 1.8S10.4 3 12 2c1.6 1 2 5.8 2 5.8s.6-1.2 2-1.8c0 1.6 1.2 2.4 1.2 4.4C17.2 12.8 15.6 15 12 15Z" fill="#9fc06f"/></svg>';
@@ -180,7 +181,7 @@ let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
-async function init(){const url=getCfg('jp_sb_url',SUPABASE_URL),key=getCfg('jp_sb_key',SUPABASE_ANON);if(!url||!key){renderSetup();return;}sb=createClient(url,key,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}});const {data}=await sb.auth.getSession();S.session=data.session;sb.auth.onAuthStateChange((_e,s)=>{S.session=s;s?afterLogin():render();});S.session?afterLogin():render();}
+async function init(){const url=getCfg('jp_sb_url',SUPABASE_URL),key=getCfg('jp_sb_key',SUPABASE_ANON);if(!url||!key){renderSetup();return;}const createClient=await loadCreateClient();if(!createClient){root.innerHTML=frame('<p class="lead" style="font-size:13px;color:var(--muted)">接続ライブラリの読み込みに失敗しました。通信環境（オフライン／社内ネットの制限など）をご確認のうえ、再読み込みしてください。</p><button class="act" style="margin-top:12px;width:100%" onclick="location.reload()">再読み込み</button>');return;}sb=createClient(url,key,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}});const {data}=await sb.auth.getSession();S.session=data.session;sb.auth.onAuthStateChange((_e,s)=>{S.session=s;s?afterLogin():render();});S.session?afterLogin():render();}
 function frame(inner){return `<div class="center"><div class="card auth"><div class="brand" style="margin-bottom:14px"><div class="logo">${LEAF}</div><div><h1 class="mincho" style="font-size:18px;color:var(--forest);margin:0">ジャパロニア</h1><div class="sub">植林CO₂管理 クラウド</div></div></div>${inner}</div></div>`;}
 function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var(--forest)">初回設定</h2><p class="lead" style="font-size:12px;color:var(--muted)">SupabaseのURLとキー（anon/publishable）を貼ってください。この端末に記憶され次回以降は不要です。</p><label class="sub" style="border:0;margin:8px 0 4px">Project URL</label><input id="c_url" placeholder="https://xxxx.supabase.co"><label class="sub" style="border:0;margin:10px 0 4px">anon / publishable キー</label><input id="c_key" placeholder="eyJ... / sb_publishable_..."><button class="act" id="c_save" style="margin-top:12px;width:100%">保存して始める</button>`);el('c_save').onclick=()=>{const u=el('c_url').value.trim(),k=el('c_key').value.trim();if(!u||!k){alert('両方入れてください');return;}localStorage.setItem('jp_sb_url',u);localStorage.setItem('jp_sb_key',k);location.reload();};}
 async function afterLogin(){await loadSites();await loadStaff();render();}
@@ -202,11 +203,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-w を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-x を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-w（圃場マップ全幅表示・表示不具合を修正）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-x（読み込み多重化＝起動不可を回避・Leaflet遅延）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -230,8 +231,9 @@ function viewJp(){
    ${note}</div>`;
   return mapCard + viewDash(true);
 }
-function initJpMap(){
-  const box=el('jpmap'); if(!box||typeof L==='undefined')return;
+async function initJpMap(){
+  const box=el('jpmap'); if(!box)return;
+  if(!await ensureL()){box.innerHTML='<div style="padding:24px;color:#777;font-size:13px;text-align:center">地図ライブラリを読み込めませんでした。ネットワークを確認して再読み込みしてください。</div>';return;}
   const map=L.map('jpmap');
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap'}).addTo(map);
   const pts=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
@@ -378,7 +380,7 @@ function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
     overlay+=cols.map(c=>`<text x="${pos(byCol[c][0])[0].toFixed(1)}" y="17" text-anchor="middle" font-family="Shippori Mincho,serif" font-weight="700" font-size="16" fill="#2f4a32">${esc(c)}</text>`).join('');
     overlay+=trees.map(t=>{const[cx,cy]=pos(t);const num=(String(t.label).match(/\d+$/)||[''])[0];return `<text x="${cx.toFixed(1)}" y="${(cy+3).toFixed(1)}" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono" fill="#fff" stroke="#33372b" stroke-width="0.6" style="paint-order:stroke" pointer-events="none">${num}</text>`;}).join('');
   }
-  return `<div class="maparea"><svg id="mapsvg${idsuf}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${circles}${overlay}</svg></div>`;
+  return `<div class="maparea"><svg id="mapsvg${idsuf}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${circles}${overlay}</svg></div>
    <div class="legend"><span>少</span><span class="legendbar"></span><span>多</span><span class="mono">${fmt(mn,2)}–${fmt(mx,2)} ${unit}</span><span style="margin-left:auto"><span class="sw" style="background:#d8d3c4"></span>計測なし</span></div>`;
 }
 function sparkChart(ms){const W=360,H=120,pad=22;const vals=ms.map(m=>{const c=co2(m);return c?c.kg:0;});const mx=Math.max(1,...vals);const n=ms.length;const bw=(W-pad*2)/n*0.5;const bars=ms.map((m,i)=>{const v=vals[i];const x=pad+(W-pad*2)*(n===1?0.5:i/(n-1))-bw/2;const h=(H-34)*(v/mx);const y=H-20-h;return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="#3e6043"/><text x="${(x+bw/2).toFixed(1)}" y="${(y-3).toFixed(1)}" font-size="9" text-anchor="middle" fill="#2f4a32" font-family="JetBrains Mono">${fmt(v,1)}</text><text x="${(x+bw/2).toFixed(1)}" y="${H-6}" font-size="8" text-anchor="middle" fill="#6f7560">${m.measured_on.slice(5).replace('-','/')}</text>`;}).join('');return `<svg viewBox="0 0 ${W} ${H}" width="100%">${bars}</svg>`;}
