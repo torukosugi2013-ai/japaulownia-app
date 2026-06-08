@@ -203,11 +203,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-y を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0606-z を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-y（圃場マップに植栽図オーバーレイ＝図に重ねて表示）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0606-z（点を中抜きリング＋番地ラベルで重なり解消）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -371,11 +371,14 @@ function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
   const unit=metric==='co2'?'kg':(metric==='h'?'m':'cm');
   const ov=!!(f.overlay_path&&f.overlay_w&&f.overlay_h);
   let W,H,pos,r,bg='';
-  if(ov){W=+f.overlay_w;H=+f.overlay_h;pos=t=>[+t.x,+t.y];r=Math.max(5,Math.round(W/95));bg=`<image href="${esc(f.overlay_path)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`;}
+  if(ov){W=+f.overlay_w;H=+f.overlay_h;pos=t=>[+t.x,+t.y];r=11;bg=`<image href="${esc(f.overlay_path)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>`;}
   else if(grid){const cols=Math.max(...trees.map(t=>t.pos_ew||1)),rows=Math.max(...trees.map(t=>t.pos_ns||1));const cs=26,pad=14;W=cols*cs+pad*2;H=rows*cs+pad*2;pos=t=>[pad+((t.pos_ew||1)-0.5)*cs,pad+(rows-(t.pos_ns||1)+0.5)*cs];r=9;}
   else{const xs=trees.map(t=>+t.x),ys=trees.map(t=>+t.y);const xmn=Math.min(...xs),xmx=Math.max(...xs),ymn=Math.min(...ys),ymx=Math.max(...ys);const dw=(xmx-xmn)||1,dh=(ymx-ymn)||1;const pad=26,headH=24;W=900;H=Math.max(240,Math.round(W*dh/dw)+headH);pos=t=>[pad+((+t.x-xmn)/dw)*(W-2*pad),pad+headH+((+t.y-ymn)/dh)*(H-2*pad-headH)];r=9;}
-  const circles=trees.map(t=>{const[cx,cy]=pos(t);const v=metricVal(t.id,S.round,metric);const fill=v==null?'#d8d3c4':heat(norm(v));return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}"${ov?' stroke="#ffffff" stroke-width="1.5" fill-opacity="0.92"':''} data-id="${t.id}"><title>${esc(t.label||'')} ${v==null?'(計測なし)':fmt(v,2)+unit}</title></circle>`;}).join('');
+  const circles=trees.map(t=>{const[cx,cy]=pos(t);const v=metricVal(t.id,S.round,metric);const fill=v==null?'#d8d3c4':heat(norm(v));return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}"${ov?` fill-opacity="0.15" stroke="${fill}" stroke-width="2.5" pointer-events="all"`:''} data-id="${t.id}"><title>${esc(t.label||'')} ${v==null?'(計測なし)':fmt(v,2)+unit}</title></circle>`;}).join('');
   let overlay='';
+  if(ov){
+    overlay+=trees.map(t=>{const[cx,cy]=pos(t);return `<text x="${cx.toFixed(1)}" y="${(cy+3.4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-family="JetBrains Mono" font-weight="700" fill="#1f2a17" stroke="#ffffff" stroke-width="2.4" style="paint-order:stroke" pointer-events="none">${esc(t.label||'')}</text>`;}).join('');
+  }
   if(!grid&&!ov){
     const byCol={};trees.forEach(t=>{const c=(String(t.label).match(/^[A-Za-z]+/)||[''])[0];(byCol[c]=byCol[c]||[]).push(t);});
     const cols=Object.keys(byCol).sort((a,b)=>pos(byCol[a][0])[0]-pos(byCol[b][0])[0]);
