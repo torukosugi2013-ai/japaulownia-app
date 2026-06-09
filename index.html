@@ -168,7 +168,7 @@ const SUPABASE_ANON='sb_publishable_-paeLD0LA0CMmMmDKhXVEg_YN_Y0OGx';
 const LEAF='<svg viewBox="0 0 24 24" fill="none"><path d="M12 21v-6" stroke="#cfe0b8" stroke-width="1.8" stroke-linecap="round"/><path d="M12 15c-3.6 0-5.2-2.2-5.2-4.6C6.8 8.4 8 7.6 8 6c1.4.6 2 1.8 2 1.8S10.4 3 12 2c1.6 1 2 5.8 2 5.8s.6-1.2 2-1.8c0 1.6 1.2 2.4 1.2 4.4C17.2 12.8 15.6 15 12 15Z" fill="#9fc06f"/></svg>';
 
 const P={cfL:0.452,cfB:0.417,cfS:0.474,cfR:0.456};
-function co2(m){if(!m)return null;let dbh=(m.dbh_cm!=null&&m.dbh_cm!=='')?+m.dbh_cm:null;let d0=(m.root_d_cm!=null&&m.root_d_cm!=='')?+m.root_d_cm:null;let est=false;if(dbh==null&&d0!=null){dbh=(d0-1.6721)/1.2663;est=true;}if(dbh==null)return null;if(d0==null)d0=1.2663*dbh+1.6721;let h=(m.height_m!=null&&m.height_m!=='')?(+m.height_m*100):null;if(h==null){h=41.306*d0+53.998;est=true;}const X=dbh*dbh*h;const WL=.001*X**.7197,WB=.0005*X**.7375,WS=.0007*X**.8221,WR=.0011*(d0*d0)**1.602;return{kg:(WL*P.cfL+WB*P.cfB+WS*P.cfS+WR*P.cfR)*(44/12),est};}
+function co2(m){if(!m)return null;let dbh=(m.dbh_cm!=null&&m.dbh_cm!=='')?+m.dbh_cm:null;let d0=(m.root_d_cm!=null&&m.root_d_cm!=='')?+m.root_d_cm:null;let est=false;if(dbh==null&&d0!=null){dbh=(d0-1.6721)/1.2663;est=true;}if(dbh==null)return null;if(d0==null)d0=1.2663*dbh+1.6721;let h=(m.height_m!=null&&m.height_m!=='')?(+m.height_m*100):null;if(h==null){h=41.306*d0+53.998;est=true;}const dd=(dbh!=null&&dbh>0)?dbh:d0;const X=dd*dd*h;const WL=.001*X**.7197,WB=.0005*X**.7375,WS=.0007*X**.8221,WR=.0011*(d0*d0)**1.602;return{kg:(WL*P.cfL+WB*P.cfB+WS*P.cfS+WR*P.cfR)*(44/12),est};}
 const fmt=(n,d=1)=>(n==null||isNaN(n))?'–':Number(n).toLocaleString('ja-JP',{maximumFractionDigits:d});
 const esc=s=>(s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const el=id=>document.getElementById(id);
@@ -177,7 +177,7 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
@@ -203,11 +203,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0607-b を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0607-d を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0607-b（背景画像をさらに薄く 30%）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0607-d（地図を高さバー表現に・色高さ切替）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -347,18 +347,19 @@ function viewMap(){
   const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
   const stats=[['個体数',trees.length,'',0],['計測済',mc,'',0],['平均樹高',avg(hv),'m',2],['平均CO₂',avg(cv),'kg',2],['合計CO₂',cv.reduce((a,b)=>a+b,0),'kg',0]];
   const viewSeg=seg('view',[['single','1つ'],['compare','2つ並べて（樹高×CO₂）']],S.compare?'compare':'single');
-  const cl=m=>m==='co2'?'CO₂':m==='h'?'樹高':'DBH';
+  const cl=m=>m==='co2'?'CO₂':m==='h'?'樹高':'DBH';const vizSeg=seg('viz',[['height','高さ'],['color','色']],S.viz);const mw=S.viz==='height'?'高さ':'色';
   const ctrls=`<div class="controls">
      <div class="ctl"><span class="lab">圃場</span>${fieldSeg}</div>
-     ${S.compare?'':`<div class="ctl"><span class="lab">色（指標）</span>${metricSeg}</div>`}
+     ${S.compare?'':`<div class="ctl"><span class="lab">指標</span>${metricSeg}</div>`}
+     <div class="ctl"><span class="lab">表現</span>${vizSeg}</div>
      <div class="ctl"><span class="lab">表示</span>${viewSeg}</div>
      <div class="ctl"><span class="lab">計測回</span>${roundSeg}</div>
      <span class="regchip">${esc(f.mrv_status||'—')}${f.rfid_managed?' · RFID':''}</span></div>`;
   const statsHtml=`<div class="stats">${stats.map(([k,v,u,d])=>`<div class="stat"><div class="k">${k}</div><div class="v">${fmt(v,d)}<small>${u}</small></div></div>`).join('')}</div>`;
   const maps=S.compare
-   ? `<div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--leaf)">色＝樹高</span></h2><p class="lead">濃いほど樹高が大きい。点クリックで個体の詳細。</p>${buildMap(f,'h','H')}</div>
-      <div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--gold)">色＝CO₂</span></h2><p class="lead">濃いほどCO₂吸収量が大きい。点クリックで個体の詳細。</p>${buildMap(f,'co2','C')}</div>`
-   : `<div class="card"><h2>${esc(f.name)}</h2><p class="lead">点をクリックすると個体の計測履歴とCO₂推移が右に開きます。色の濃さ＝${cl(S.metric)}の大小。</p>${buildMap(f,S.metric,'')}</div>`;
+   ? `<div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--leaf)">${mw}＝樹高</span></h2><p class="lead">${mw==='高さ'?'棒が高いほど':'濃いほど'}樹高が大きい。点クリックで個体の詳細。</p>${buildMap(f,'h','H')}</div>
+      <div class="card"><h2>${esc(f.name)} ・ <span style="color:var(--gold)">${mw}＝CO₂</span></h2><p class="lead">${mw==='高さ'?'棒が高いほど':'濃いほど'}CO₂吸収量が大きい。点クリックで個体の詳細。</p>${buildMap(f,'co2','C')}</div>`
+   : `<div class="card"><h2>${esc(f.name)}</h2><p class="lead">点をクリックすると個体の計測履歴とCO₂推移が右に開きます。${mw==='高さ'?'棒の高さ':'色の濃さ'}＝${cl(S.metric)}の大小。</p>${buildMap(f,S.metric,'')}</div>`;
   return `${ctrls}${statsHtml}${maps}${parcelCard(f)}`;
 }
 function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
@@ -375,6 +376,9 @@ function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
   else if(grid){const cols=Math.max(...trees.map(t=>t.pos_ew||1)),rows=Math.max(...trees.map(t=>t.pos_ns||1));const cs=26,pad=14;W=cols*cs+pad*2;H=rows*cs+pad*2;pos=t=>[pad+((t.pos_ew||1)-0.5)*cs,pad+(rows-(t.pos_ns||1)+0.5)*cs];r=9;}
   else{const xs=trees.map(t=>+t.x),ys=trees.map(t=>+t.y);const xmn=Math.min(...xs),xmx=Math.max(...xs),ymn=Math.min(...ys),ymx=Math.max(...ys);const dw=(xmx-xmn)||1,dh=(ymx-ymn)||1;const pad=26,headH=24;W=900;H=Math.max(240,Math.round(W*dh/dw)+headH);pos=t=>[pad+((+t.x-xmn)/dw)*(W-2*pad),pad+headH+((+t.y-ymn)/dh)*(H-2*pad-headH)];r=9;}
   const circles=trees.map(t=>{const[cx,cy]=pos(t);const v=metricVal(t.id,S.round,metric);const fill=v==null?'#d8d3c4':heat(norm(v));return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r}" fill="${fill}"${ov?` stroke="#ffffff" stroke-width="1" pointer-events="all"`:''} data-id="${t.id}"><title>${esc(t.label||'')} ${v==null?'(計測なし)':fmt(v,2)+unit}</title></circle>`;}).join('');
+  const ml=metric==='co2'?'CO₂':(metric==='h'?'樹高':'DBH');
+  const bars=(function(){const MAXBAR=ov?34:(grid?20:60),bw=ov?5:6;return trees.map(t=>{const[cx,cy]=pos(t);const v=metricVal(t.id,S.round,metric);if(v==null)return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2.6" fill="#c9c4b6" data-id="${t.id}" pointer-events="all"><title>${esc(t.label||'')} (計測なし)</title></circle>`;const bh=5+norm(v)*MAXBAR;return `<g data-id="${t.id}" pointer-events="all"><title>${esc(t.label||'')} ${fmt(v,2)+unit}</title><rect x="${(cx-bw/2).toFixed(1)}" y="${(cy-bh).toFixed(1)}" width="${bw}" height="${bh.toFixed(1)}" rx="${(bw/2).toFixed(1)}" fill="#5f8a4f" stroke="#ffffff" stroke-width="0.8"/><circle cx="${cx.toFixed(1)}" cy="${(cy-bh).toFixed(1)}" r="${(bw/2+1.2).toFixed(1)}" fill="#3e6043"/></g>`;}).join('');})();
+  const marks=S.viz==='height'?bars:circles;
   let overlay='';
   if(ov){
     overlay+=trees.map(t=>{const[cx,cy]=pos(t);return `<text x="${cx.toFixed(1)}" y="${(cy+3.4).toFixed(1)}" text-anchor="middle" font-size="9.5" font-family="JetBrains Mono" font-weight="700" fill="#1f2a17" stroke="#ffffff" stroke-width="2.4" style="paint-order:stroke" pointer-events="none">${esc(t.label||'')}</text>`;}).join('');
@@ -385,8 +389,11 @@ function buildMap(f,metric,idsuf){metric=metric||S.metric;idsuf=idsuf||'';
     overlay+=cols.map(c=>`<text x="${pos(byCol[c][0])[0].toFixed(1)}" y="17" text-anchor="middle" font-family="Shippori Mincho,serif" font-weight="700" font-size="16" fill="#2f4a32">${esc(c)}</text>`).join('');
     overlay+=trees.map(t=>{const[cx,cy]=pos(t);const num=(String(t.label).match(/\d+$/)||[''])[0];return `<text x="${cx.toFixed(1)}" y="${(cy+3).toFixed(1)}" text-anchor="middle" font-size="8.5" font-family="JetBrains Mono" fill="#fff" stroke="#33372b" stroke-width="0.6" style="paint-order:stroke" pointer-events="none">${num}</text>`;}).join('');
   }
-  return `<div class="maparea"><svg id="mapsvg${idsuf}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${bg}${circles}${overlay}</svg></div>
-   <div class="legend"><span>少</span><span class="legendbar"></span><span>多</span><span class="mono">${fmt(mn,2)}–${fmt(mx,2)} ${unit}</span><span style="margin-left:auto"><span class="sw" style="background:#d8d3c4"></span>計測なし</span></div>`;
+  const legend=S.viz==='height'
+   ? `<div class="legend"><span class="mono">棒が高いほど${ml}が大きい</span><span class="mono">範囲 ${fmt(mn,2)}–${fmt(mx,2)} ${unit}</span><span style="margin-left:auto"><span class="sw" style="background:#c9c4b6"></span>計測なし</span></div>`
+   : `<div class="legend"><span>少</span><span class="legendbar"></span><span>多</span><span class="mono">${fmt(mn,2)}–${fmt(mx,2)} ${unit}</span><span style="margin-left:auto"><span class="sw" style="background:#d8d3c4"></span>計測なし</span></div>`;
+  return `<div class="maparea"><svg id="mapsvg${idsuf}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" preserveAspectRatio="xMidYMid meet">${bg}${marks}${overlay}</svg></div>
+   ${legend}`;
 }
 function sparkChart(ms){const W=360,H=120,pad=22;const vals=ms.map(m=>{const c=co2(m);return c?c.kg:0;});const mx=Math.max(1,...vals);const n=ms.length;const bw=(W-pad*2)/n*0.5;const bars=ms.map((m,i)=>{const v=vals[i];const x=pad+(W-pad*2)*(n===1?0.5:i/(n-1))-bw/2;const h=(H-34)*(v/mx);const y=H-20-h;return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="#3e6043"/><text x="${(x+bw/2).toFixed(1)}" y="${(y-3).toFixed(1)}" font-size="9" text-anchor="middle" fill="#2f4a32" font-family="JetBrains Mono">${fmt(v,1)}</text><text x="${(x+bw/2).toFixed(1)}" y="${H-6}" font-size="8" text-anchor="middle" fill="#6f7560">${m.measured_on.slice(5).replace('-','/')}</text>`;}).join('');return `<svg viewBox="0 0 ${W} ${H}" width="100%">${bars}</svg>`;}
 function drawerContent(t){
@@ -761,7 +768,7 @@ function bind(){
   if(el('distwrap')){initDistrictImg();const dsg=el('distsvg');if(dsg)dsg.onclick=distSvgClick;window.onpointermove=distOnMove;window.onpointerup=distOnUp;}
   if(el('p_files'))bindPhotosImport();
   if(el('camcanvas'))initCam();
-  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='view')S.compare=(v==='compare');render();});});
+  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='viz')S.viz=v;else if(id==='view')S.compare=(v==='compare');render();});});
   document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
   document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
   const det=el('distEditToggle');if(det)det.onclick=distToggleEdit;
