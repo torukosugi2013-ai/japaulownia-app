@@ -203,11 +203,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0607-e を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0607-f を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0607-e（樹高は桐の木アイコンで表現）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0607-f（バー/木クリックで個体詳細が開くよう修正）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -407,7 +407,7 @@ function drawerContent(t){
    <div class="sub">計測履歴</div>
    <table><thead><tr><th>計測日</th><th>樹高m</th><th>DBHcm</th><th>根元cm</th><th>CO₂kg</th></tr></thead><tbody>${rows}</tbody></table><div class="sub">写真</div><div class="gallery" id="dphotos"><span class="lead">読み込み中…</span></div><div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap"><label class="act gh sm" style="cursor:pointer">＋ 写真を追加<input id="dphotofile" type="file" accept="image/*" multiple style="display:none"></label><span class="lead">撮影日 <input id="dphotodate" type="date" value="${t.planted_date||''}" style="width:148px"> （自動取得・無い時の予備）</span></div>`;
 }
-function openDrawer(tid){const t=S.trees.find(x=>x.id===tid);if(!t)return;el('drawer').innerHTML=drawerContent(t);el('drawer').classList.add('open');el('scrim').classList.add('on');document.querySelectorAll('.maparea svg circle').forEach(c=>c.classList.toggle('dotsel',c.getAttribute('data-id')===tid));const x=el('dx');if(x)x.onclick=closeDrawer;loadPhotos(t.id);bindPhotoUpload(t);}
+function openDrawer(tid){const t=S.trees.find(x=>x.id===tid);if(!t)return;el('drawer').innerHTML=drawerContent(t);el('drawer').classList.add('open');el('scrim').classList.add('on');document.querySelectorAll('.maparea svg [data-id]').forEach(c=>c.classList.toggle('dotsel',c.getAttribute('data-id')===tid));const x=el('dx');if(x)x.onclick=closeDrawer;loadPhotos(t.id);bindPhotoUpload(t);}
 async function loadPhotos(tid){const box=el('dphotos');if(!box)return;try{const {data,error}=await sb.from('tree_photos').select('*').eq('tree_id',tid).order('taken_on',{nullsFirst:false});if(error)throw error;if(!data||!data.length){box.innerHTML='<div class="emptyph">写真はまだありません</div>';return;}
   box.innerHTML=data.map((p,i)=>`<div class="phitem"><div class="ph"><img id="ph_${i}" alt=""><button class="phdel" data-pid="${esc(p.id)}" title="この写真を削除">×</button></div><div class="phcap"><span class="capdate" data-pid="${esc(p.id)}" title="クリックで日付を入力・修正">${esc(p.taken_on||'撮影日不明')}</span></div></div>`).join('');
   data.forEach((p,i)=>{const im=el('ph_'+i);if(!im)return;const pub=sb.storage.from('tree-photos').getPublicUrl(p.storage_path).data.publicUrl;im.src=pub;im.onclick=()=>openLb(im.src,p.taken_on||'撮影日不明');im.onerror=async()=>{im.onerror=null;try{const {data:s}=await sb.storage.from('tree-photos').createSignedUrl(p.storage_path,3600);if(s&&s.signedUrl){im.src=s.signedUrl;}else{markBroken(im);}}catch(_){markBroken(im);}};});
@@ -421,7 +421,7 @@ function toYMD(d){const dt=(d instanceof Date)?d:new Date(d);if(isNaN(dt))return
 async function photoTakenDate(file,fallback){try{const ex=await getExifr();if(ex){const d=await ex.parse(file,['DateTimeOriginal','CreateDate','DateTimeDigitized']);const dd=d&&(d.DateTimeOriginal||d.CreateDate||d.DateTimeDigitized);const y=dd?toYMD(dd):null;if(y)return y;}}catch(_){}if(file&&file.lastModified){const y=toYMD(new Date(file.lastModified));if(y)return y;}return fallback||null;}
 function bindPhotoUpload(t){const f=el('dphotofile');if(!f)return;f.onchange=async e=>{const files=[...e.target.files];const box=el('dphotos');if(box)box.innerHTML='<div class="emptyph">アップロード中…</div>';for(const fl of files){const path=`${t.id}/${Date.now()}-${fl.name.replace(/[^\w.\-]/g,'_')}`;const up=await sb.storage.from('tree-photos').upload(path,fl);if(up.error){alert('アップロード失敗: '+up.error.message);continue;}const taken=await photoTakenDate(fl,(el('dphotodate')&&el('dphotodate').value)||null);const {error}=await sb.from('tree_photos').insert({tree_id:t.id,taken_on:taken,storage_path:path,created_by:S.session.user.id});if(error){alert('記録失敗: '+error.message);}}loadPhotos(t.id);};}
 function openLb(u,cap){const lb=el('lb');if(!lb)return;lb.querySelector('img').src=u;const c=el('lbcap');if(c)c.textContent=cap||'';lb.classList.add('on');}
-function closeDrawer(){const d=el('drawer');if(d)d.classList.remove('open');const s=el('scrim');if(s)s.classList.remove('on');document.querySelectorAll('.maparea svg circle.dotsel').forEach(c=>c.classList.remove('dotsel'));}
+function closeDrawer(){const d=el('drawer');if(d)d.classList.remove('open');const s=el('scrim');if(s)s.classList.remove('on');document.querySelectorAll('.maparea svg [data-id].dotsel').forEach(c=>c.classList.remove('dotsel'));}
 
 function parcelCard(f){
   const ps=f.parcels||[];const total=ps.reduce((a,p)=>a+(+p.area_sqm||0),0);
@@ -769,7 +769,7 @@ function bind(){
   if(el('p_files'))bindPhotosImport();
   if(el('camcanvas'))initCam();
   document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='viz')S.viz=v;else if(id==='view')S.compare=(v==='compare');render();});});
-  document.querySelectorAll('.maparea svg circle[data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
+  document.querySelectorAll('.maparea svg [data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
   document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
   const det=el('distEditToggle');if(det)det.onclick=distToggleEdit;
   const du=el('distUndo');if(du)du.onclick=distUndo;
