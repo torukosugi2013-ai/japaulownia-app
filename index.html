@@ -218,11 +218,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc10 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc11 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='budget'?'on':''}" data-tab="budget">予算</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc10（予算タブを追加：年次×項目の損益表。都城3案件を初期投入）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc11（予実比較を追加：予算支出 vs 作業ログ実費用を年次で対比）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -794,7 +794,7 @@ function viewBudget(){
             +sumRow('当期損益',profY,true)+sumRow('累積損益',i=>cumY[i],true);
   const be=cumY.findIndex(v=>v>=0);
   const kpis=[['初年度損益',yen(profY(0))+' 円',sgn(profY(0))],['黒字転換',be>=0?(be+1)+'年目':'—',''],['最終年 当期損益',yen(profY(yN-1))+' 円',sgn(profY(yN-1))],['最終 累積損益',yen(cumY[yN-1])+' 円',sgn(cumY[yN-1])]];
-  return `<div class="card"><h2>${title} ・ 予算</h2>
+  const budgetCard=`<div class="card"><h2>${title} ・ 予算</h2>
      <p class="lead">年次×項目で収支計画を管理します。各セルに金額を入れ、最後に「保存」。合計・損益・累積は自動計算です。</p>
      <div class="stats" style="margin-bottom:10px">${kpis.map(([k,v,st])=>`<div class="stat"><div class="k">${k}</div><div class="v" style="font-size:15px;${st}">${v}</div></div>`).join('')}</div>
      <div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px"><table style="font-size:12px;min-width:100%"><thead>${head}</thead><tbody>${body}</tbody></table></div>
@@ -809,6 +809,46 @@ function viewBudget(){
        <div id="bgmsg" style="margin-top:6px"></div>
      </div>
   </div>`;
+
+  /* ---- 予実比較（予算 vs 実費用） ---- */
+  const start=site.project_start||((S.fields||[]).map(f=>f.planted_date).filter(Boolean).sort()[0])||'';
+  const usingDefault=!site.project_start&&!!start;
+  const MS=365.25*86400000;
+  const buckets=Array.from({length:yN},()=>0);let overflow=0,totalActual=0;const byType={};
+  (S.worklogs||[]).forEach(w=>{const c=+w.cost_yen||0;if(!c)return;totalActual+=c;const t=w.cost_type||'その他';byType[t]=(byType[t]||0)+c;if(start&&w.work_date){let yi=Math.floor((new Date(w.work_date).getTime()-new Date(start).getTime())/MS);if(yi<0)yi=0;if(yi>=yN)overflow+=c;else buckets[yi]+=c;}});
+  const cy=start?Math.min(yN,Math.max(1,Math.floor((Date.now()-new Date(start).getTime())/MS)+1)):0;
+  const budExpTot=yl(i=>expY(i)).reduce((a,b)=>a+b,0);
+  const budToCy=start?yl(i=>i<cy?expY(i):0).reduce((a,b)=>a+b,0):0;
+  const actToCy=start?buckets.slice(0,cy).reduce((a,b)=>a+b,0):0;
+  const difToCy=budToCy-actToCy;
+  const curRate=start&&expY(cy-1)>0?(buckets[cy-1]/expY(cy-1)*100):null;
+  const yjKpis=[
+    ['事業年次（現在）',start?cy+'年目 / '+yN+'年':'未設定',''],
+    ['予算 支出（〜当年累計）',start?yen(budToCy)+' 円':'—',''],
+    ['実費用（〜当年累計）',start?yen(actToCy)+' 円':yen(totalActual)+' 円',''],
+    ['差異（予算−実績）',start?yen(difToCy)+' 円':'—',sgn(difToCy)],
+  ];
+  const yjRows=yl(i=>{const bud=expY(i),act=buckets[i],dif=bud-act,pct=bud>0?act/bud*100:0;const cur=(i+1===cy);
+    return `<tr style="${cur?'background:rgba(200,116,45,.09)':''}"><td style="font-weight:${cur?'700':'400'}">${i+1}年目${cur?' <span style="font-size:10px;color:#a85c1f">当年</span>':''}</td><td class="num">${yen(bud)}</td><td class="num">${start?yen(act):'—'}</td><td class="num" style="${start?sgn(dif):''}">${start?yen(dif):'—'}</td><td class="num">${start&&bud>0?pct.toFixed(0)+'%':'—'}</td></tr>`;}).join('');
+  const totBud=budExpTot,totAct=totalActual,totDif=totBud-totAct;
+  const yjTotRow=`<tr style="background:rgba(58,125,82,.10);font-weight:700"><td>支出 合計</td><td class="num">${yen(totBud)}</td><td class="num">${yen(totAct)}</td><td class="num" style="${sgn(totDif)}">${yen(totDif)}</td><td class="num">${totBud>0?(totAct/totBud*100).toFixed(0)+'%':'—'}</td></tr>`;
+  const tEntries=Object.entries(byType).sort((a,b)=>b[1]-a[1]);
+  const ctColor={'人件費':'#2e573c','資材費':'#6b8e5a','外注費':'#c8742d','委託費':'#4d80e4','種苗費':'#9b5de5','その他':'#9a9384'};
+  const typeList=tEntries.length?tEntries.map(([t,v])=>`<div class="sec-row" style="grid-template-columns:90px 1fr 110px"><div class="nm">${esc(t)}</div><div class="dbar"><i style="width:${totAct>0?v/totAct*100:0}%;background:${ctColor[t]||'#9a9384'}"></i></div><div class="pc">¥${yen(v)}</div></div>`).join(''):'<span class="dmuted" style="font-size:12px">実費用（作業ログ）がまだありません。</span>';
+  const yojitsuCard=`<div class="card"><h2>予実比較（予算 vs 実費用）</h2>
+     <p class="lead">「作業・費用」の作業ログ（費用）を事業開始日からの年次に割り当て、予算（支出）と比較します。${usingDefault?'<br><span style="color:#a85c1f">※事業開始日が未設定のため、圃場の植樹日から仮設定しています。下で確定してください。</span>':''}</p>
+     <div class="controls" style="margin-bottom:10px">
+       <div class="ctl"><span class="lab">事業開始日（年次の起点）</span><input type="date" id="bg_start" value="${start||''}"></div>
+       <button class="act gh" id="bg_startsave" style="align-self:flex-end">事業開始日を保存</button>
+     </div>
+     ${start?'':'<div class="banner">事業開始日を設定すると、各年の予算と実費用を年次で突き合わせできます（未設定でも下の費目別の実績合計は表示します）。</div>'}
+     <div class="stats" style="margin-bottom:10px">${yjKpis.map(([k,v,st])=>`<div class="stat"><div class="k">${k}</div><div class="v" style="font-size:15px;${st}">${v}</div></div>`).join('')}</div>
+     <div style="overflow-x:auto;border:1px solid var(--line);border-radius:12px"><table style="font-size:12px;min-width:100%"><thead><tr><th style="text-align:left">年次</th><th class="num">予算 支出</th><th class="num">実費用</th><th class="num">差異</th><th class="num">消化率</th></tr></thead><tbody>${yjRows}${yjTotRow}</tbody></table></div>
+     ${overflow>0?`<p class="dmuted" style="font-size:12px;margin-top:6px">※ 計画期間（${yN}年）より後の費用 ¥${yen(overflow)} は合計のみに含めています。</p>`:''}
+     <div style="margin-top:14px"><div style="font-weight:700;font-size:13px;margin-bottom:6px">実費用の内訳（費目別・累計）</div>${typeList}</div>
+     <p class="dmuted" style="font-size:11px;margin-top:10px">実費用＝「作業・費用」タブの作業ログ cost_yen 合計。収入側（カーボンクレジット等）の実績は別管理です。</p>
+  </div>`;
+  return budgetCard+yojitsuCard;
 }
 
 /* ===== カーボンクレジット ===== */
@@ -1387,6 +1427,7 @@ function bind(){
   const bgAddLine=el('bg_addline');if(bgAddLine)bgAddLine.onclick=async()=>{const kind=el('bg_kind').value;const cat=el('bg_cat').value.trim();if(!cat){el('bgmsg').innerHTML='<span class="bad">項目名を入れてください。</span>';return;}const yN=Math.max(1,...(S.budget||[]).map(l=>(l.amounts||[]).length),10);const so=Math.max(0,...(S.budget||[]).filter(l=>l.kind===kind).map(l=>l.sort_order||0))+1;const {error}=await sb.from('budget_lines').insert({site_id:S.site,kind,category:cat,sort_order:so,amounts:Array.from({length:yN},()=>0)});if(error){alert(error.message);return;}await loadBudget(S.site);render();};
   const bgAddYear=el('bg_addyear');if(bgAddYear)bgAddYear.onclick=async()=>{const yN=Math.max(1,...(S.budget||[]).map(l=>(l.amounts||[]).length));let err=null;for(const l of (S.budget||[])){const a=(l.amounts||[]).slice();while(a.length<yN)a.push(0);a.push(0);const {error}=await sb.from('budget_lines').update({amounts:a}).eq('id',l.id);if(error){err=error;break;}}if(err){alert(err.message);return;}await loadBudget(S.site);render();};
   document.querySelectorAll('[data-bdel]').forEach(b=>b.onclick=async()=>{if(!confirm('この項目（行）を削除しますか？'))return;const {error}=await sb.from('budget_lines').delete().eq('id',b.dataset.bdel);if(error){alert(error.message);return;}await loadBudget(S.site);render();});
+  const bgStartSave=el('bg_startsave');if(bgStartSave)bgStartSave.onclick=async()=>{const v=el('bg_start').value||null;const {error}=await sb.from('sites').update({project_start:v}).eq('id',S.site);if(error){alert(error.message);return;}const s=S.sites.find(x=>x.id===S.site);if(s)s.project_start=v;render();};
   const sta=el('st_add');if(sta)sta.onclick=async()=>{const name=el('st_name').value.trim();if(!name){el('stmsg').innerHTML='<span class="bad">氏名を入れてください。</span>';return;}const {error}=await sb.from('staff').insert({name,role:el('st_role').value||null,site_id:S.site,field_id:el('st_field').value||null,phone:el('st_phone').value||null});if(error){el('stmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadStaff();render();};
   document.querySelectorAll('.stafffield').forEach(sel=>sel.onchange=async()=>{const {error}=await sb.from('staff').update({field_id:sel.value||null}).eq('id',sel.dataset.id);if(error){alert(error.message);return;}await loadStaff();render();});
   document.querySelectorAll('[data-stafftoggle]').forEach(b=>b.onclick=async()=>{const {error}=await sb.from('staff').update({active:b.dataset.act!=='1'}).eq('id',b.dataset.stafftoggle);if(error){alert(error.message);return;}await loadStaff();render();});
