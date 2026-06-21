@@ -177,7 +177,7 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10)};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10),projects:[],pfields:[],stages:[],issuances:[],txns:[],creditProj:null};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
@@ -187,7 +187,17 @@ function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
 async function afterLogin(){await loadSites();await loadStaff();render();}
 async function loadStaff(){S.staff=((await sb.from('staff').select('*').order('name')).data)||[];}
 async function loadSites(){const {data,error}=await sb.from('sites').select('*').order('name');if(error){alert('読込エラー: '+error.message);return;}S.sites=data||[];if(!S.site&&S.sites.length)S.site=S.sites[0].id;if(S.site)await loadSite(S.site);}
-async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=[];if(fids.length){let _tf=0;for(;;){const _r=await sb.from('trees').select('*').in('field_id',fids).range(_tf,_tf+999);const _d=_r.data||[];S.trees=S.trees.concat(_d);if(_d.length<1000)break;_tf+=1000;}}const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}}
+async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=[];if(fids.length){let _tf=0;for(;;){const _r=await sb.from('trees').select('*').in('field_id',fids).range(_tf,_tf+999);const _d=_r.data||[];S.trees=S.trees.concat(_d);if(_d.length<1000)break;_tf+=1000;}}const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}await loadCredit(id);}
+async function loadCredit(id){
+  const pj=((await sb.from('cc_projects').select('*').eq('site_id',id).order('created_at')).data)||[];
+  S.projects=pj;const pids=pj.map(p=>p.id);
+  S.pfields=pids.length?(((await sb.from('cc_project_fields').select('*').in('project_id',pids)).data)||[]):[];
+  S.stages=pids.length?(((await sb.from('cc_stages').select('*').in('project_id',pids).order('sort_order')).data)||[]):[];
+  S.issuances=pids.length?(((await sb.from('cc_issuances').select('*').in('project_id',pids).order('issue_date')).data)||[]):[];
+  const iids=S.issuances.map(i=>i.id);
+  S.txns=iids.length?(((await sb.from('cc_transactions').select('*').in('issuance_id',iids).order('txn_date')).data)||[]):[];
+  if((!S.creditProj||!pj.find(p=>p.id===S.creditProj))&&pj.length)S.creditProj=pj[0].id;
+}
 
 function treeMeas(tid){return S.meas.filter(m=>m.tree_id===tid);}
 function measFor(tid,round){const ms=treeMeas(tid);if(!ms.length)return null;if(round==='latest')return ms[ms.length-1];return ms.find(m=>m.measured_on===round)||null;}
@@ -198,16 +208,16 @@ function seg(id,opts,cur){return `<div class="seg" data-seg="${id}">`+opts.map((
 
 function render(){
   if(!S.session){renderLogin();return;}
-  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():viewJp();
+  const content=S.tab==='jp'?viewJp():S.tab==='district'?viewDistrict():S.tab==='map'?viewMap():S.tab==='entry'?viewEntry():S.tab==='cam'?viewCam():S.tab==='photos'?viewPhotos():S.tab==='work'?viewWork():S.tab==='credit'?viewCredit():viewJp();
   const siteSelOpts=S.sites.map(s=>`<option value="${esc(s.id)}" ${s.id===S.site?'selected':''}>${esc(s.name)}（${S.site===s.id?S.fields.length:'…'}圃場）</option>`).join('');
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0607-f を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
-    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button></div>
+    <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0607-f（バー/木クリックで個体詳細が開くよう修正）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc（カーボンクレジット創出プロセス・台帳タブを追加）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -687,6 +697,150 @@ function viewWork(){
   </div>`;
 }
 
+/* ===== カーボンクレジット ===== */
+const CC_SCHEMES=[['J-Credit','J-クレジット'],['VCS','VCS (Verra)'],['other','その他']];
+const STD_STAGES=[['PLAN','①計画策定'],['VALIDATION','②妥当性確認'],['REGISTRATION','③プロジェクト登録'],['MONITORING','④モニタリング'],['VERIFICATION','⑤検証'],['ISSUANCE','⑥認証・クレジット発行']];
+const CC_STAGE_ST=[['notstarted','未着手'],['inprogress','進行中'],['done','完了']];
+const CC_STAGE_COL={notstarted:'#9a9384',inprogress:'#c8742d',done:'#3a7d52'};
+const CC_TXN=[['sale','売却'],['transfer','移転'],['retirement','無効化'],['adjustment','調整']];
+const ccTxnLabel=t=>(CC_TXN.find(x=>x[0]===t)||[t,t])[1];
+function ccStockTco2(fieldIds){let kg=0;const fset=new Set(fieldIds);S.trees.forEach(t=>{if(!fset.has(t.field_id))return;if(t.alive===false)return;const m=measFor(t.id,'latest');if(!m)return;const c=co2(m);const v=c?c.kg:(m.co2_kg||0);kg+=(+v||0);});return kg/1000;}
+
+function viewCredit(){
+  const site=S.sites.find(s=>s.id===S.site)||{};
+  const projects=(S.projects||[]).filter(p=>p.site_id===S.site);
+  const projSeg=projects.length?(`<div class="seg" data-seg="ccproj">`+projects.map(p=>`<button class="${p.id===S.creditProj?'on':''}" data-v="${p.id}">${esc(p.name)}</button>`).join('')+`</div>`):'<span class="lead">この拠点のプロジェクトはまだありません。下のフォームで作成してください。</span>';
+  const head=`<div class="card"><h2>カーボンクレジット — ${esc(site.name||'')}</h2>
+    <p class="lead">創出プロジェクト（拠点単位）ごとに、認証までの工程と、発行されたクレジットの在庫・取引台帳を管理します。</p>
+    <div style="margin-bottom:6px">${projSeg}</div>
+    <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:13px;font-weight:700">＋ 新しいプロジェクトを作成</summary>
+      <div class="controls" style="margin-top:10px">
+        <div class="ctl"><span class="lab">プロジェクト名</span><input id="cp_name" style="width:210px" placeholder="例）都城 植林プロジェクト"></div>
+        <div class="ctl"><span class="lab">制度</span><select id="cp_scheme">${CC_SCHEMES.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>
+        <div class="ctl"><span class="lab">方法論</span><input id="cp_method" style="width:170px" placeholder="例）植林活動"></div>
+        <button class="act" id="cp_add" style="align-self:flex-end">作成</button>
+      </div>
+      <div id="cpmsg" style="margin-top:6px"></div>
+    </details></div>`;
+  if(!S.creditProj||!projects.find(p=>p.id===S.creditProj))return head;
+  const p=projects.find(x=>x.id===S.creditProj);
+  const linkedFids=(S.pfields||[]).filter(x=>x.project_id===p.id).map(x=>x.field_id);
+  const stockT=ccStockTco2(linkedFids);
+
+  const fieldChecks=S.fields.map(f=>`<label style="display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:13px;cursor:pointer;background:${linkedFids.includes(f.id)?'rgba(58,125,82,.12)':'#fff'};margin:0 6px 6px 0"><input type="checkbox" class="cc_field" data-fid="${f.id}" ${linkedFids.includes(f.id)?'checked':''}> ${esc(f.name)}</label>`).join('');
+  const infoCard=`<div class="card"><h2>${esc(p.name)} ・ プロジェクト情報</h2>
+    <div class="controls">
+      <div class="ctl"><span class="lab">プロジェクト名</span><input id="cpe_name" value="${esc(p.name)}" style="width:200px"></div>
+      <div class="ctl"><span class="lab">制度</span><select id="cpe_scheme">${CC_SCHEMES.map(([v,l])=>`<option value="${v}" ${p.scheme===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="ctl"><span class="lab">方法論</span><input id="cpe_method" value="${esc(p.methodology||'')}" style="width:160px"></div>
+      <div class="ctl"><span class="lab">登録番号</span><input id="cpe_reg" value="${esc(p.registry_id||'')}" style="width:150px"></div>
+      <div class="ctl"><span class="lab">認証期間 開始</span><input type="date" id="cpe_cs" value="${p.crediting_start||''}"></div>
+      <div class="ctl"><span class="lab">認証期間 終了</span><input type="date" id="cpe_ce" value="${p.crediting_end||''}"></div>
+      <button class="act" id="cpe_save" style="align-self:flex-end">情報を保存</button>
+    </div>
+    <div class="ctl" style="margin-top:10px"><span class="lab">ベースライン・追加性メモ</span><textarea id="cpe_base" style="width:100%;min-height:50px;font-family:inherit">${esc(p.baseline_note||'')}</textarea></div>
+    <div style="margin-top:12px"><span class="lab" style="display:block;margin-bottom:6px">対象圃場（チェックで紐付け）</span>${fieldChecks||'<span class="lead">圃場なし</span>'}</div>
+    <div class="stats" style="margin-top:14px">
+      <div class="stat"><div class="k">対象圃場</div><div class="v">${linkedFids.length}<small>圃場</small></div></div>
+      <div class="stat"><div class="k">対象個体</div><div class="v">${S.trees.filter(t=>linkedFids.includes(t.field_id)).length}<small>本</small></div></div>
+      <div class="stat"><div class="k">推定CO₂ストック<small>（参考）</small></div><div class="v">${fmt(stockT,1)}<small>t</small></div></div>
+    </div>
+    <p class="lead" style="font-size:11px;margin-top:6px">※ 推定CO₂ストックは各圃場の生存個体の最新計測値の合計（中根2008式）です。認証量そのものではなく進捗の目安です。MRVの確定値は検証後に下の「発行クレジット」へ登録してください。</p>
+  </div>`;
+
+  const stages=(S.stages||[]).filter(s=>s.project_id===p.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  let stageCard;
+  if(!stages.length){
+    stageCard=`<div class="card"><h2>創出プロセス（工程）</h2><p class="lead">標準の6工程（計画→妥当性確認→登録→モニタリング→検証→認証発行）を作成します。あとから状態・期限・担当を入れていけます。</p><button class="act" id="cc_seed">標準工程を作成</button></div>`;
+  }else{
+    const rows=stages.map(s=>`<tr>
+      <td><strong>${esc(s.step_name)}</strong></td>
+      <td><select data-stg="${s.id}" data-k="status" style="font-size:12px">${CC_STAGE_ST.map(([v,l])=>`<option value="${v}" ${s.status===v?'selected':''}>${l}</option>`).join('')}</select></td>
+      <td><input type="date" data-stg="${s.id}" data-k="target_date" value="${s.target_date||''}" style="font-size:12px"></td>
+      <td><input type="date" data-stg="${s.id}" data-k="done_date" value="${s.done_date||''}" style="font-size:12px"></td>
+      <td><input data-stg="${s.id}" data-k="responsible" value="${esc(s.responsible||'')}" placeholder="担当" style="width:84px;font-size:12px"></td>
+      <td><input data-stg="${s.id}" data-k="third_party" value="${esc(s.third_party||'')}" placeholder="検証機関等" style="width:120px;font-size:12px"></td>
+      <td><input data-stg="${s.id}" data-k="notes" value="${esc(s.notes||'')}" style="width:140px;font-size:12px"></td>
+      <td><button class="act gh sm" data-stgsave="${s.id}">保存</button></td></tr>`).join('');
+    const doneN=stages.filter(s=>s.status==='done').length;
+    const prog=stages.map(s=>`<span title="${esc(s.step_name)}" style="display:inline-block;width:30px;height:8px;border-radius:4px;background:${CC_STAGE_COL[s.status]||'#ccc'}"></span>`).join(' ');
+    stageCard=`<div class="card"><h2>創出プロセス（工程）</h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">${prog}<span class="lead" style="font-size:12px;margin:0">${doneN}/${stages.length} 完了</span></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>工程</th><th>状態</th><th>期限</th><th>完了日</th><th>担当</th><th>検証機関等</th><th>メモ</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+  }
+
+  const issuances=(S.issuances||[]).filter(i=>i.project_id===p.id);
+  const issIds=issuances.map(i=>i.id);
+  const txns=(S.txns||[]).filter(t=>issIds.includes(t.issuance_id));
+  const issuedT=issuances.reduce((a,i)=>a+(+i.tco2_issued||0),0);
+  const outT=txns.filter(t=>['sale','transfer','retirement'].includes(t.txn_type)).reduce((a,t)=>a+(+t.tco2||0),0);
+  const balT=issuedT-outT;
+  const revenue=txns.filter(t=>t.txn_type==='sale').reduce((a,t)=>a+(+t.amount_yen||0),0);
+  const soldT=txns.filter(t=>t.txn_type==='sale').reduce((a,t)=>a+(+t.tco2||0),0);
+  const retiredT=txns.filter(t=>t.txn_type==='retirement').reduce((a,t)=>a+(+t.tco2||0),0);
+
+  const issRows=issuances.map(i=>{
+    const used=txns.filter(t=>t.issuance_id===i.id&&['sale','transfer','retirement'].includes(t.txn_type)).reduce((a,t)=>a+(+t.tco2||0),0);
+    const bal=(+i.tco2_issued||0)-used;
+    return `<tr><td>${esc(i.vintage||'—')}</td><td style="text-align:right"><strong>${fmt(i.tco2_issued,1)}</strong></td><td style="text-align:right">${fmt(bal,1)}</td><td>${i.issue_date||'—'}</td><td style="font-size:11px">${i.monitoring_start||'?'}〜${i.monitoring_end||'?'}</td><td style="font-size:11px">${esc((i.serial_from||'')+(i.serial_to?(' 〜 '+i.serial_to):''))||'—'}</td><td style="font-size:11px">${esc(i.certificate_no||'—')}</td><td><button class="act gh sm" data-deliss="${i.id}">削除</button></td></tr>`;
+  }).join('')||'<tr><td colspan="8" style="color:var(--muted)">発行済みクレジットはまだありません。検証・認証が済んだら下で登録します。</td></tr>';
+
+  const issCard=`<div class="card"><h2>発行クレジット（在庫）</h2>
+    <div class="stats">
+      <div class="stat"><div class="k">発行計</div><div class="v">${fmt(issuedT,1)}<small>t</small></div></div>
+      <div class="stat"><div class="k">保有残高</div><div class="v" style="color:var(--forest)">${fmt(balT,1)}<small>t</small></div></div>
+      <div class="stat"><div class="k">売却</div><div class="v">${fmt(soldT,1)}<small>t</small></div></div>
+      <div class="stat"><div class="k">無効化</div><div class="v">${fmt(retiredT,1)}<small>t</small></div></div>
+      <div class="stat"><div class="k">売却額</div><div class="v">¥${revenue.toLocaleString('ja-JP')}</div></div>
+    </div>
+    <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>年度</th><th class="num">発行量t</th><th class="num">残t</th><th>発行日</th><th>対象期間</th><th>管理番号</th><th>認証通知</th><th></th></tr></thead><tbody>${issRows}</tbody></table></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><h2 style="font-size:14px">発行ロットを登録</h2>
+      <div class="controls">
+        <div class="ctl"><span class="lab">年度/ビンテージ</span><input id="ci_vintage" style="width:120px" placeholder="例）2025年度"></div>
+        <div class="ctl"><span class="lab">認証量 tCO₂</span><input type="number" id="ci_tco2" step="0.1" min="0" style="width:110px"></div>
+        <div class="ctl"><span class="lab">発行日</span><input type="date" id="ci_date"></div>
+        <div class="ctl"><span class="lab">対象期間 開始</span><input type="date" id="ci_ms"></div>
+        <div class="ctl"><span class="lab">対象期間 終了</span><input type="date" id="ci_me"></div>
+        <div class="ctl"><span class="lab">管理番号 from</span><input id="ci_sf" style="width:120px"></div>
+        <div class="ctl"><span class="lab">管理番号 to</span><input id="ci_st" style="width:120px"></div>
+        <div class="ctl"><span class="lab">認証通知番号</span><input id="ci_cert" style="width:130px"></div>
+        <button class="act" id="ci_add" style="align-self:flex-end">登録</button>
+      </div>
+      <div id="cimsg" style="margin-top:6px"></div>
+    </div></div>`;
+
+  let txCard='';
+  if(issuances.length){
+    const txRows=txns.slice().sort((a,b)=>String(b.txn_date).localeCompare(String(a.txn_date))).map(t=>{
+      const iss=issuances.find(i=>i.id===t.issuance_id);
+      const col=t.txn_type==='sale'?'#3a7d52':t.txn_type==='retirement'?'#7a5230':t.txn_type==='transfer'?'#2f6f8f':'#9a9384';
+      return `<tr><td>${t.txn_date||''}</td><td>${esc(iss?(iss.vintage||'—'):'—')}</td><td><span style="background:${col};color:#fff;padding:1px 8px;border-radius:20px;font-size:11px">${ccTxnLabel(t.txn_type)}</span></td><td style="text-align:right">${fmt(t.tco2,1)}</td><td>${esc(t.counterparty||'—')}</td><td style="text-align:right">${t.unit_price_yen!=null?'¥'+Number(t.unit_price_yen).toLocaleString('ja-JP'):'—'}</td><td style="text-align:right">${t.amount_yen!=null?'¥'+Number(t.amount_yen).toLocaleString('ja-JP'):'—'}</td><td style="font-size:12px">${esc(t.purpose||'—')}</td><td><button class="act gh sm" data-deltx="${t.id}">削除</button></td></tr>`;
+    }).join('')||'<tr><td colspan="9" style="color:var(--muted)">取引記録はまだありません。</td></tr>';
+    const issOpts=issuances.map(i=>`<option value="${i.id}">${esc(i.vintage||i.issue_date||i.id.slice(0,8))}</option>`).join('');
+    txCard=`<div class="card"><h2>取引台帳（売却・移転・無効化）</h2>
+      <div style="overflow-x:auto"><table><thead><tr><th>日付</th><th>年度</th><th>区分</th><th class="num">数量t</th><th>相手先</th><th class="num">単価</th><th class="num">金額</th><th>用途</th><th></th></tr></thead><tbody>${txRows}</tbody></table></div>
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><h2 style="font-size:14px">取引を記録</h2>
+        <div class="controls">
+          <div class="ctl"><span class="lab">発行ロット</span><select id="ct_iss">${issOpts}</select></div>
+          <div class="ctl"><span class="lab">区分</span><select id="ct_type">${CC_TXN.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>
+          <div class="ctl"><span class="lab">日付</span><input type="date" id="ct_date" value="${new Date().toISOString().slice(0,10)}"></div>
+          <div class="ctl"><span class="lab">数量 tCO₂</span><input type="number" id="ct_tco2" step="0.1" min="0" style="width:100px"></div>
+          <div class="ctl"><span class="lab">相手先</span><input id="ct_cp" style="width:150px" placeholder="買い手・移転先"></div>
+          <div class="ctl"><span class="lab">単価 円/t</span><input type="number" id="ct_price" step="1" min="0" style="width:110px"></div>
+          <div class="ctl"><span class="lab">金額 円</span><input type="number" id="ct_amt" step="1" min="0" style="width:120px" placeholder="空欄=単価×数量"></div>
+          <div class="ctl"><span class="lab">用途</span><input id="ct_purpose" style="width:140px" placeholder="販売/自社オフセット等"></div>
+          <button class="act" id="ct_add" style="align-self:flex-end">記録</button>
+        </div>
+        <div id="ctmsg" style="margin-top:6px"></div>
+      </div></div>`;
+  }
+
+  const delCard=`<div class="card"><details><summary style="cursor:pointer;color:var(--danger);font-weight:700;font-size:13px">このプロジェクトを削除</summary><p class="lead" style="margin-top:8px">工程・発行ロット・取引もまとめて削除されます。元に戻せません。</p><button class="act gh sm" id="cc_delproj" style="color:var(--danger);border-color:var(--danger)">削除する</button></details></div>`;
+
+  return head+infoCard+stageCard+issCard+txCard+delCard;
+}
+
 /* ===== カメラ計測（標尺・基準スケール法） ===== */
 const CAM={img:null,file:null,pts:[],fieldId:null,treeId:null};
 function camTreesFor(fid){return (S.trees||[]).filter(t=>t.field_id===fid).sort((a,b)=>String(a.label||a.epc||'').localeCompare(String(b.label||b.epc||''),'ja',{numeric:true}));}
@@ -768,7 +922,7 @@ function bind(){
   if(el('distwrap')){initDistrictImg();const dsg=el('distsvg');if(dsg)dsg.onclick=distSvgClick;window.onpointermove=distOnMove;window.onpointerup=distOnUp;}
   if(el('p_files'))bindPhotosImport();
   if(el('camcanvas'))initCam();
-  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='viz')S.viz=v;else if(id==='view')S.compare=(v==='compare');render();});});
+  document.querySelectorAll('[data-seg]').forEach(g=>{const id=g.dataset.seg;g.querySelectorAll('button').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(id==='field'){S.field=v;closeDrawer();}else if(id==='metric')S.metric=v;else if(id==='round')S.round=v;else if(id==='efield')S.entryField=v;else if(id==='pfield')S.entryField=v;else if(id==='wfield')S.entryField=v;else if(id==='viz')S.viz=v;else if(id==='view')S.compare=(v==='compare');else if(id==='ccproj')S.creditProj=v;render();});});
   document.querySelectorAll('.maparea svg [data-id]').forEach(c=>c.onclick=()=>openDrawer(c.getAttribute('data-id')));
   document.querySelectorAll('[data-distfield]').forEach(b=>b.onclick=()=>{ if(DIST.edit){distSelectField(b.dataset.distfield);} else {S.field=b.dataset.distfield;S.tab='map';closeDrawer();render();} });
   const det=el('distEditToggle');if(det)det.onclick=distToggleEdit;
@@ -797,6 +951,17 @@ function bind(){
   const sa=el('saveAll');if(sa)sa.onclick=saveAll;
   const co=el('csvOut');if(co)co.onclick=csvOut;
   const ci=el('csvIn');if(ci)ci.onchange=csvIn;
+  /* --- カーボンクレジット --- */
+  const cpAdd=el('cp_add');if(cpAdd)cpAdd.onclick=async()=>{const name=el('cp_name').value.trim();if(!name){el('cpmsg').innerHTML='<span class="bad">プロジェクト名を入れてください。</span>';return;}const {data,error}=await sb.from('cc_projects').insert({site_id:S.site,name,scheme:el('cp_scheme').value,methodology:el('cp_method').value||null,created_by:S.session.user.id}).select().single();if(error){el('cpmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}S.creditProj=data.id;await loadCredit(S.site);render();};
+  const cpeSave=el('cpe_save');if(cpeSave)cpeSave.onclick=async()=>{const {error}=await sb.from('cc_projects').update({name:el('cpe_name').value.trim(),scheme:el('cpe_scheme').value,methodology:el('cpe_method').value||null,registry_id:el('cpe_reg').value||null,crediting_start:el('cpe_cs').value||null,crediting_end:el('cpe_ce').value||null,baseline_note:el('cpe_base').value||null}).eq('id',S.creditProj);if(error){alert(error.message);return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('.cc_field').forEach(c=>c.onchange=async()=>{const fid=c.dataset.fid;if(c.checked){const {error}=await sb.from('cc_project_fields').insert({project_id:S.creditProj,field_id:fid});if(error&&!/duplicate/i.test(error.message)){alert(error.message);}}else{await sb.from('cc_project_fields').delete().eq('project_id',S.creditProj).eq('field_id',fid);}await loadCredit(S.site);render();});
+  const ccSeed=el('cc_seed');if(ccSeed)ccSeed.onclick=async()=>{const rows=STD_STAGES.map(([code,name],i)=>({project_id:S.creditProj,step_code:code,step_name:name,sort_order:i}));const {error}=await sb.from('cc_stages').insert(rows);if(error){alert(error.message);return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('[data-stgsave]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.stgsave;const g=k=>{const e=document.querySelector(`[data-stg="${id}"][data-k="${k}"]`);return e?e.value:null;};const {error}=await sb.from('cc_stages').update({status:g('status'),target_date:g('target_date')||null,done_date:g('done_date')||null,responsible:g('responsible')||null,third_party:g('third_party')||null,notes:g('notes')||null}).eq('id',id);if(error){alert(error.message);return;}await loadCredit(S.site);render();});
+  const ciAdd=el('ci_add');if(ciAdd)ciAdd.onclick=async()=>{const v=el('ci_tco2').value;if(v===''){el('cimsg').innerHTML='<span class="bad">認証量を入れてください。</span>';return;}const {error}=await sb.from('cc_issuances').insert({project_id:S.creditProj,vintage:el('ci_vintage').value||null,tco2_issued:+v,issue_date:el('ci_date').value||null,monitoring_start:el('ci_ms').value||null,monitoring_end:el('ci_me').value||null,serial_from:el('ci_sf').value||null,serial_to:el('ci_st').value||null,certificate_no:el('ci_cert').value||null,created_by:S.session.user.id});if(error){el('cimsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('[data-deliss]').forEach(b=>b.onclick=async()=>{if(!confirm('この発行ロットを削除しますか？（紐づく取引も削除されます）'))return;await sb.from('cc_issuances').delete().eq('id',b.dataset.deliss);await loadCredit(S.site);render();});
+  const ctAdd=el('ct_add');if(ctAdd)ctAdd.onclick=async()=>{const v=el('ct_tco2').value;if(v===''){el('ctmsg').innerHTML='<span class="bad">数量を入れてください。</span>';return;}const date=el('ct_date').value;if(!date){el('ctmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const price=el('ct_price').value,amtRaw=el('ct_amt').value;const amt=amtRaw!==''?+amtRaw:(price!==''?(+price*+v):null);const {error}=await sb.from('cc_transactions').insert({issuance_id:el('ct_iss').value,txn_type:el('ct_type').value,txn_date:date,tco2:+v,counterparty:el('ct_cp').value||null,unit_price_yen:price===''?null:+price,amount_yen:amt,purpose:el('ct_purpose').value||null,created_by:S.session.user.id});if(error){el('ctmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('[data-deltx]').forEach(b=>b.onclick=async()=>{if(!confirm('この取引を削除しますか？'))return;await sb.from('cc_transactions').delete().eq('id',b.dataset.deltx);await loadCredit(S.site);render();});
+  const ccDel=el('cc_delproj');if(ccDel)ccDel.onclick=async()=>{if(!confirm('本当にこのプロジェクトを削除しますか？元に戻せません。'))return;await sb.from('cc_projects').delete().eq('id',S.creditProj);S.creditProj=null;await loadCredit(S.site);render();};
 }
 async function saveAll(){const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('e_date').value;const trees=S.trees.filter(t=>t.field_id===f.id);const rows=[];trees.forEach(t=>{const h=val('h',t.id),dbh=val('dbh',t.id),rd=val('rd',t.id);if(h===''&&dbh===''&&rd==='')return;const c=co2({height_m:h,dbh_cm:dbh,root_d_cm:rd});rows.push({tree_id:t.id,measured_on:date,height_m:h===''?null:+h,dbh_cm:dbh===''?null:+dbh,root_d_cm:rd===''?null:+rd,co2_kg:c?c.kg:null,estimated:c?c.est:false,created_by:S.session.user.id});});if(!rows.length){el('emsg').innerHTML='<span class="lead">入力された行がありません。</span>';return;}el('emsg').innerHTML='<span class="lead">保存中…</span>';const tids=rows.map(r=>r.tree_id);for(let i=0;i<tids.length;i+=150){await sb.from('measurements').delete().eq('measured_on',date).in('tree_id',tids.slice(i,i+150));}for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('measurements').insert(rows.slice(i,i+200));if(error){el('emsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}}S.dash=null;await loadSite(S.site);render();setTimeout(()=>{const m=el('emsg');if(m)m.innerHTML=`<span class="ok">${rows.length}本分を保存しました（${date}）。</span>`;},50);}
 function csvOut(){const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const trees=S.trees.filter(t=>t.field_id===f.id);const lines=['記号,樹高m,DBHcm,根元cm'].concat(trees.map(t=>`${t.label||t.epc||''},,,`));const blob=new Blob(['\ufeff'+lines.join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${f.name}_計測雛形.csv`;a.click();}
