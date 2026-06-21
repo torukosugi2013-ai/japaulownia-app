@@ -177,7 +177,7 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10),projects:[],pfields:[],stages:[],issuances:[],txns:[],reqs:[],creditProj:null};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10),projects:[],pfields:[],stages:[],issuances:[],txns:[],reqs:[],parties:[],activities:[],creditProj:null};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
@@ -197,6 +197,8 @@ async function loadCredit(id){
   const iids=S.issuances.map(i=>i.id);
   S.txns=iids.length?(((await sb.from('cc_transactions').select('*').in('issuance_id',iids).order('txn_date')).data)||[]):[];
   S.reqs=pids.length?(((await sb.from('cc_requirements').select('*').in('project_id',pids).order('sort_order')).data)||[]):[];
+  S.parties=pids.length?(((await sb.from('cc_parties').select('*').in('project_id',pids).order('sort_order')).data)||[]):[];
+  S.activities=pids.length?(((await sb.from('cc_activities').select('*').in('project_id',pids).order('act_date',{ascending:false})).data)||[]):[];
   if((!S.creditProj||!pj.find(p=>p.id===S.creditProj))&&pj.length)S.creditProj=pj[0].id;
 }
 
@@ -214,11 +216,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc4 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc5 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc4（クレジット：制度別の必要書類・情報チェックリストを追加）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc5（クレジット：関係者・契約台帳と実施記録、書類の版・提出日を追加）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -832,6 +834,8 @@ const CC_REQS={
   ],
 };
 const ccReqTpl=scheme=>CC_REQS[scheme]||CC_REQS['other'];
+const CC_PARTY_ROLES=['VVB（妥当性確認）','VVB（検証）','設備監査（VVB）','審査機関','コンサル/開発支援','登録簿運営','買い手','その他'];
+const CC_PARTY_ST=[['planned','予定'],['active','進行中'],['done','完了']];
 const CC_STAGE_ST=[['notstarted','未着手'],['inprogress','進行中'],['done','完了']];
 const CC_STAGE_COL={notstarted:'#9a9384',inprogress:'#c8742d',done:'#3a7d52'};
 const CC_TXN=[['sale','売却'],['transfer','移転'],['retirement','無効化'],['adjustment','調整']];
@@ -919,20 +923,22 @@ function viewCredit(){
     const rowFor=r=>`<tr>
       <td style="min-width:170px"><strong style="font-size:13px">${esc(r.req_name)}</strong>${catBadge(r.category)}</td>
       <td><select data-req="${r.id}" data-k="status" style="font-size:12px;border-left:4px solid ${CC_REQ_COL[r.status]||'#ccc'}">${CC_REQ_ST.map(([v,l])=>`<option value="${v}" ${r.status===v?'selected':''}>${l}</option>`).join('')}</select></td>
+      <td><input data-req="${r.id}" data-k="version" value="${esc(r.version||'')}" placeholder="v1" style="width:48px;font-size:12px"></td>
+      <td><input type="date" data-req="${r.id}" data-k="submitted_on" value="${r.submitted_on||''}" style="font-size:12px"></td>
       <td><input data-req="${r.id}" data-k="responsible" value="${esc(r.responsible||'')}" placeholder="担当" style="width:78px;font-size:12px"></td>
       <td><input type="date" data-req="${r.id}" data-k="due_date" value="${r.due_date||''}" style="font-size:12px"></td>
       <td><input data-req="${r.id}" data-k="doc_ref" value="${esc(r.doc_ref||'')}" placeholder="保存先URL/メモ" style="width:150px;font-size:12px">${linkBtn(r.doc_ref)}</td>
       <td><input data-req="${r.id}" data-k="note" value="${esc(r.note||'')}" style="width:120px;font-size:12px"></td>
       <td style="white-space:nowrap"><button class="act gh sm" data-reqsave="${r.id}">保存</button> <button class="act gh sm" data-reqdel="${r.id}">×</button></td></tr>`;
     let body='';
-    order.forEach(k=>{const title=stepName[k]?stepName[k].n:(k==='_'?'未分類':k);body+=`<tr><td colspan="7" style="background:rgba(58,125,82,.10);font-weight:700;padding:6px 8px;font-size:12.5px">${esc(title)}</td></tr>`+grp[k].map(rowFor).join('');});
+    order.forEach(k=>{const title=stepName[k]?stepName[k].n:(k==='_'?'未分類':k);body+=`<tr><td colspan="9" style="background:rgba(58,125,82,.10);font-weight:700;padding:6px 8px;font-size:12.5px">${esc(title)}</td></tr>`+grp[k].map(rowFor).join('');});
     reqCard=`<div class="card"><h2>必要書類・情報の管理</h2>
       <div class="stats" style="margin-bottom:10px">
         <div class="stat"><div class="k">項目数</div><div class="v">${reqs.length}</div></div>
         <div class="stat"><div class="k">提出済+承認</div><div class="v">${subN}<small>/${reqs.length}</small></div></div>
         <div class="stat"><div class="k">承認済</div><div class="v" style="color:var(--forest)">${apprN}<small>/${reqs.length}</small></div></div>
       </div>
-      <div style="overflow-x:auto"><table><thead><tr><th>必要書類・情報</th><th>状態</th><th>担当</th><th>期限</th><th>保存先</th><th>備考</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
+      <div style="overflow-x:auto"><table><thead><tr><th>必要書類・情報</th><th>状態</th><th>版</th><th>提出日</th><th>担当</th><th>期限</th><th>保存先</th><th>備考</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
         <div class="controls">
           <div class="ctl"><span class="lab">項目を追加</span><input id="cr_name" style="width:200px" placeholder="書類・情報の名称"></div>
@@ -944,6 +950,62 @@ function viewCredit(){
       </div>
     </div>`;
   }
+
+  const parties=(S.parties||[]).filter(x=>x.project_id===p.id);
+  const ptyBlock=p2=>`<div style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;background:#fff">
+    <div class="controls">
+      <div class="ctl"><span class="lab">役割</span><select data-pty="${p2.id}" data-k="role" style="width:150px">${CC_PARTY_ROLES.map(r=>`<option ${p2.role===r?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
+      <div class="ctl"><span class="lab">機関・相手名</span><input data-pty="${p2.id}" data-k="name" value="${esc(p2.name||'')}" style="width:180px"></div>
+      <div class="ctl"><span class="lab">担当者</span><input data-pty="${p2.id}" data-k="contact_person" value="${esc(p2.contact_person||'')}" style="width:120px"></div>
+      <div class="ctl"><span class="lab">メール</span><input data-pty="${p2.id}" data-k="contact_email" value="${esc(p2.contact_email||'')}" style="width:170px"></div>
+      <div class="ctl"><span class="lab">電話</span><input data-pty="${p2.id}" data-k="contact_tel" value="${esc(p2.contact_tel||'')}" style="width:120px"></div>
+      <div class="ctl"><span class="lab">状態</span><select data-pty="${p2.id}" data-k="status">${CC_PARTY_ST.map(([v,l])=>`<option value="${v}" ${p2.status===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div class="controls" style="margin-top:8px">
+      <div class="ctl"><span class="lab">契約名</span><input data-pty="${p2.id}" data-k="contract_title" value="${esc(p2.contract_title||'')}" style="width:180px"></div>
+      <div class="ctl"><span class="lab">契約開始</span><input type="date" data-pty="${p2.id}" data-k="contract_start" value="${p2.contract_start||''}"></div>
+      <div class="ctl"><span class="lab">契約終了</span><input type="date" data-pty="${p2.id}" data-k="contract_end" value="${p2.contract_end||''}"></div>
+      <div class="ctl"><span class="lab">金額（円）</span><input type="number" data-pty="${p2.id}" data-k="amount_yen" value="${p2.amount_yen??''}" style="width:120px"></div>
+      <div class="ctl"><span class="lab">保存先(URL/メモ)</span><input data-pty="${p2.id}" data-k="doc_ref" value="${esc(p2.doc_ref||'')}" style="width:160px"></div>
+    </div>
+    <div class="ctl" style="margin-top:8px"><span class="lab">契約範囲・実施内容</span><textarea data-pty="${p2.id}" data-k="scope" style="width:100%;min-height:44px;font-family:inherit">${esc(p2.scope||'')}</textarea></div>
+    <div class="ctl" style="margin-top:6px"><span class="lab">備考</span><input data-pty="${p2.id}" data-k="note" value="${esc(p2.note||'')}" style="width:100%"></div>
+    <div style="margin-top:8px;display:flex;gap:8px"><button class="act sm" data-ptysave="${p2.id}">保存</button><button class="act gh sm" data-ptydel="${p2.id}" style="color:var(--danger)">削除</button></div>
+  </div>`;
+  const partiesCard=`<div class="card"><h2>関係者・契約台帳</h2><p class="lead">VVB（妥当性確認・検証）／審査機関／コンサル等の相手・連絡先・契約内容・実施範囲を管理します。</p>
+    ${parties.map(ptyBlock).join('')||'<p class="lead">まだ登録がありません。下から追加してください。</p>'}
+    <details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-weight:700;font-size:13px">＋ 関係者・契約を追加</summary>
+      <div class="controls" style="margin-top:10px">
+        <div class="ctl"><span class="lab">役割</span><select id="pa_role" style="width:150px">${CC_PARTY_ROLES.map(r=>`<option>${esc(r)}</option>`).join('')}</select></div>
+        <div class="ctl"><span class="lab">機関・相手名</span><input id="pa_name" style="width:180px" placeholder="例）○○審査登録機関"></div>
+        <div class="ctl"><span class="lab">担当者</span><input id="pa_person" style="width:120px"></div>
+        <div class="ctl"><span class="lab">メール</span><input id="pa_email" style="width:160px"></div>
+        <div class="ctl"><span class="lab">電話</span><input id="pa_tel" style="width:120px"></div>
+        <button class="act" id="pa_add" style="align-self:flex-end">追加</button>
+      </div>
+      <div id="pamsg" style="margin-top:6px"></div>
+    </details></div>`;
+
+  const acts=(S.activities||[]).filter(a=>a.project_id===p.id);
+  const stepName2={};ccStageTpl(p.scheme).forEach(([c,n])=>stepName2[c]=n);
+  const actLink=u=>(u&&/^https?:\/\//.test(u))?`<a href="${esc(u)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--forest2)">開く↗</a>`:esc(u||'—');
+  const actRows=acts.map(a=>`<tr><td>${a.act_date||''}</td><td style="font-size:12px">${esc(a.step_code?(stepName2[a.step_code]||a.step_code):'—')}</td><td style="min-width:160px"><strong>${esc(a.title)}</strong>${a.detail?`<div style="font-size:12px;color:var(--muted)">${esc(a.detail)}</div>`:''}</td><td>${esc(a.counterparty||'—')}</td><td>${esc(a.responsible||'—')}</td><td style="font-size:12px">${esc(a.result||'—')}</td><td>${actLink(a.doc_ref)}</td><td><button class="act gh sm" data-actdel="${a.id}">×</button></td></tr>`).join('')||'<tr><td colspan="8" style="color:var(--muted)">まだ実施記録がありません。</td></tr>';
+  const activitiesCard=`<div class="card"><h2>実施記録</h2><p class="lead">工程ごとに「いつ・何を・誰と・結果」を時系列で記録します（監査・MRVの証跡）。</p>
+    <div style="overflow-x:auto"><table><thead><tr><th>日付</th><th>工程</th><th>実施内容</th><th>相手先</th><th>担当</th><th>結果</th><th>保存先</th><th></th></tr></thead><tbody>${actRows}</tbody></table></div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
+      <div class="controls">
+        <div class="ctl"><span class="lab">日付</span><input type="date" id="ac_date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="ctl"><span class="lab">工程</span><select id="ac_step"><option value="">（未分類）</option>${ccStageTpl(p.scheme).map(([c,n])=>`<option value="${c}">${esc(n)}</option>`).join('')}</select></div>
+        <div class="ctl"><span class="lab">タイトル</span><input id="ac_title" style="width:160px" placeholder="例）VVBキックオフ会議"></div>
+        <div class="ctl"><span class="lab">相手先</span><input id="ac_cp" style="width:130px"></div>
+        <div class="ctl"><span class="lab">担当</span><input id="ac_resp" style="width:100px"></div>
+        <div class="ctl"><span class="lab">結果</span><input id="ac_result" style="width:130px"></div>
+        <button class="act" id="ac_add" style="align-self:flex-end">記録</button>
+      </div>
+      <div class="ctl" style="margin-top:8px"><span class="lab">実施内容（詳細）</span><textarea id="ac_detail" style="width:100%;min-height:44px;font-family:inherit"></textarea></div>
+      <div class="ctl" style="margin-top:6px"><span class="lab">保存先(URL/メモ)</span><input id="ac_ref" style="width:100%"></div>
+      <div id="acmsg" style="margin-top:6px"></div>
+    </div></div>`;
 
   const issuances=(S.issuances||[]).filter(i=>i.project_id===p.id);
   const issIds=issuances.map(i=>i.id);
@@ -1013,7 +1075,7 @@ function viewCredit(){
 
   const delCard=`<div class="card"><details><summary style="cursor:pointer;color:var(--danger);font-weight:700;font-size:13px">このプロジェクトを削除</summary><p class="lead" style="margin-top:8px">工程・発行ロット・取引もまとめて削除されます。元に戻せません。</p><button class="act gh sm" id="cc_delproj" style="color:var(--danger);border-color:var(--danger)">削除する</button></details></div>`;
 
-  return head+infoCard+stageCard+reqCard+issCard+txCard+delCard;
+  return head+infoCard+stageCard+reqCard+partiesCard+activitiesCard+issCard+txCard+delCard;
 }
 
 /* ===== カメラ計測（標尺・基準スケール法） ===== */
@@ -1139,9 +1201,14 @@ function bind(){
   const ctAdd=el('ct_add');if(ctAdd)ctAdd.onclick=async()=>{const v=el('ct_tco2').value;if(v===''){el('ctmsg').innerHTML='<span class="bad">数量を入れてください。</span>';return;}const date=el('ct_date').value;if(!date){el('ctmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const price=el('ct_price').value,amtRaw=el('ct_amt').value;const amt=amtRaw!==''?+amtRaw:(price!==''?(+price*+v):null);const {error}=await sb.from('cc_transactions').insert({issuance_id:el('ct_iss').value,txn_type:el('ct_type').value,txn_date:date,tco2:+v,counterparty:el('ct_cp').value||null,unit_price_yen:price===''?null:+price,amount_yen:amt,purpose:el('ct_purpose').value||null,created_by:S.session.user.id});if(error){el('ctmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
   document.querySelectorAll('[data-deltx]').forEach(b=>b.onclick=async()=>{if(!confirm('この取引を削除しますか？'))return;await sb.from('cc_transactions').delete().eq('id',b.dataset.deltx);await loadCredit(S.site);render();});
   const ccSeedReq=el('cc_seedreq');if(ccSeedReq)ccSeedReq.onclick=async()=>{const pr=(S.projects||[]).find(x=>x.id===S.creditProj);const tpl=ccReqTpl(pr&&pr.scheme);const rows=tpl.map(([code,name,step,cat],i)=>({project_id:S.creditProj,req_code:code,req_name:name,step_code:step,category:cat,sort_order:i}));const {error}=await sb.from('cc_requirements').insert(rows);if(error){alert(error.message);return;}await loadCredit(S.site);render();};
-  document.querySelectorAll('[data-reqsave]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.reqsave;const g=k=>{const e=document.querySelector(`[data-req="${id}"][data-k="${k}"]`);return e?e.value:null;};const {error}=await sb.from('cc_requirements').update({status:g('status'),responsible:g('responsible')||null,due_date:g('due_date')||null,doc_ref:g('doc_ref')||null,note:g('note')||null}).eq('id',id);if(error){alert(error.message);return;}await loadCredit(S.site);render();});
+  document.querySelectorAll('[data-reqsave]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.reqsave;const g=k=>{const e=document.querySelector(`[data-req="${id}"][data-k="${k}"]`);return e?e.value:null;};const {error}=await sb.from('cc_requirements').update({status:g('status'),version:g('version')||null,submitted_on:g('submitted_on')||null,responsible:g('responsible')||null,due_date:g('due_date')||null,doc_ref:g('doc_ref')||null,note:g('note')||null}).eq('id',id);if(error){alert(error.message);return;}await loadCredit(S.site);render();});
   document.querySelectorAll('[data-reqdel]').forEach(b=>b.onclick=async()=>{if(!confirm('この項目を削除しますか？'))return;await sb.from('cc_requirements').delete().eq('id',b.dataset.reqdel);await loadCredit(S.site);render();});
   const crAdd=el('cr_add');if(crAdd)crAdd.onclick=async()=>{const name=el('cr_name').value.trim();if(!name){el('crmsg').innerHTML='<span class="bad">名称を入れてください。</span>';return;}const so=Math.max(0,...((S.reqs||[]).filter(r=>r.project_id===S.creditProj).map(r=>r.sort_order||0)))+1;const {error}=await sb.from('cc_requirements').insert({project_id:S.creditProj,req_name:name,step_code:el('cr_step').value||null,category:el('cr_cat').value||null,sort_order:so});if(error){el('crmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
+  const paAdd=el('pa_add');if(paAdd)paAdd.onclick=async()=>{const name=el('pa_name').value.trim();if(!name){el('pamsg').innerHTML='<span class="bad">機関・相手名を入れてください。</span>';return;}const so=Math.max(0,...((S.parties||[]).filter(x=>x.project_id===S.creditProj).map(x=>x.sort_order||0)))+1;const {error}=await sb.from('cc_parties').insert({project_id:S.creditProj,role:el('pa_role').value,name,contact_person:el('pa_person').value||null,contact_email:el('pa_email').value||null,contact_tel:el('pa_tel').value||null,sort_order:so});if(error){el('pamsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('[data-ptysave]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.ptysave;const g=k=>{const e=document.querySelector(`[data-pty="${id}"][data-k="${k}"]`);return e?e.value:null;};const amt=g('amount_yen');const {error}=await sb.from('cc_parties').update({role:g('role')||null,name:(g('name')||'').trim()||'(無名)',contact_person:g('contact_person')||null,contact_email:g('contact_email')||null,contact_tel:g('contact_tel')||null,status:g('status'),contract_title:g('contract_title')||null,contract_start:g('contract_start')||null,contract_end:g('contract_end')||null,amount_yen:(amt===''||amt==null)?null:+amt,scope:g('scope')||null,doc_ref:g('doc_ref')||null,note:g('note')||null}).eq('id',id);if(error){alert(error.message);return;}await loadCredit(S.site);render();});
+  document.querySelectorAll('[data-ptydel]').forEach(b=>b.onclick=async()=>{if(!confirm('この関係者・契約を削除しますか？'))return;await sb.from('cc_parties').delete().eq('id',b.dataset.ptydel);await loadCredit(S.site);render();});
+  const acAdd=el('ac_add');if(acAdd)acAdd.onclick=async()=>{const title=el('ac_title').value.trim();if(!title){el('acmsg').innerHTML='<span class="bad">タイトルを入れてください。</span>';return;}const {error}=await sb.from('cc_activities').insert({project_id:S.creditProj,act_date:el('ac_date').value||null,step_code:el('ac_step').value||null,title,detail:el('ac_detail').value||null,counterparty:el('ac_cp').value||null,responsible:el('ac_resp').value||null,result:el('ac_result').value||null,doc_ref:el('ac_ref').value||null,created_by:S.session.user.id});if(error){el('acmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
+  document.querySelectorAll('[data-actdel]').forEach(b=>b.onclick=async()=>{if(!confirm('この実施記録を削除しますか？'))return;await sb.from('cc_activities').delete().eq('id',b.dataset.actdel);await loadCredit(S.site);render();});
   const ccDel=el('cc_delproj');if(ccDel)ccDel.onclick=async()=>{if(!confirm('本当にこのプロジェクトを削除しますか？元に戻せません。'))return;await sb.from('cc_projects').delete().eq('id',S.creditProj);S.creditProj=null;await loadCredit(S.site);render();};
 }
 async function saveAll(){const f=S.fields.find(x=>x.id===S.entryField);if(!f)return;const date=el('e_date').value;const trees=S.trees.filter(t=>t.field_id===f.id);const rows=[];trees.forEach(t=>{const h=val('h',t.id),dbh=val('dbh',t.id),rd=val('rd',t.id);if(h===''&&dbh===''&&rd==='')return;const c=co2({height_m:h,dbh_cm:dbh,root_d_cm:rd});rows.push({tree_id:t.id,measured_on:date,height_m:h===''?null:+h,dbh_cm:dbh===''?null:+dbh,root_d_cm:rd===''?null:+rd,co2_kg:c?c.kg:null,estimated:c?c.est:false,created_by:S.session.user.id});});if(!rows.length){el('emsg').innerHTML='<span class="lead">入力された行がありません。</span>';return;}el('emsg').innerHTML='<span class="lead">保存中…</span>';const tids=rows.map(r=>r.tree_id);for(let i=0;i<tids.length;i+=150){await sb.from('measurements').delete().eq('measured_on',date).in('tree_id',tids.slice(i,i+150));}for(let i=0;i<rows.length;i+=200){const {error}=await sb.from('measurements').insert(rows.slice(i,i+200));if(error){el('emsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}}S.dash=null;await loadSite(S.site);render();setTimeout(()=>{const m=el('emsg');if(m)m.innerHTML=`<span class="ok">${rows.length}本分を保存しました（${date}）。</span>`;},50);}
