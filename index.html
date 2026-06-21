@@ -177,14 +177,15 @@ function heat(t){const a=[233,239,216],b=[47,74,50];const c=a.map((x,i)=>Math.ro
 
 let sb=null;
 let pendingPhotos=[];
-let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10),projects:[],pfields:[],stages:[],issuances:[],txns:[],reqs:[],parties:[],activities:[],creditProj:null};
+let S={session:null,sites:[],site:null,fields:[],trees:[],meas:[],tab:'jp',field:null,metric:'co2',viz:'height',round:'latest',compare:false,photoDate:null,selTree:null,sops:[],worklogs:[],staff:[],prefs:[],workMonth:null,entryField:null,entryDate:new Date().toISOString().slice(0,10),projects:[],pfields:[],stages:[],issuances:[],txns:[],reqs:[],parties:[],activities:[],creditProj:null};
 
 init();
 function getCfg(k,c){return (c&&!c.includes('ここに')&&c.trim())?c:(localStorage.getItem(k)||'');}
 async function init(){const url=getCfg('jp_sb_url',SUPABASE_URL),key=getCfg('jp_sb_key',SUPABASE_ANON);if(!url||!key){renderSetup();return;}const createClient=await loadCreateClient();if(!createClient){root.innerHTML=frame('<p class="lead" style="font-size:13px;color:var(--muted)">接続ライブラリの読み込みに失敗しました。通信環境（オフライン／社内ネットの制限など）をご確認のうえ、再読み込みしてください。</p><button class="act" style="margin-top:12px;width:100%" onclick="location.reload()">再読み込み</button>');return;}sb=createClient(url,key,{auth:{storage:window.sessionStorage,persistSession:true,autoRefreshToken:true}});const {data}=await sb.auth.getSession();S.session=data.session;sb.auth.onAuthStateChange((_e,s)=>{S.session=s;s?afterLogin():render();});S.session?afterLogin():render();}
 function frame(inner){return `<div class="center"><div class="card auth"><div class="brand" style="margin-bottom:14px"><div class="logo">${LEAF}</div><div><h1 class="mincho" style="font-size:18px;color:var(--forest);margin:0">ジャパロニア</h1><div class="sub">植林CO₂管理 クラウド</div></div></div>${inner}</div></div>`;}
 function renderSetup(){root.innerHTML=frame(`<h2 class="mincho" style="color:var(--forest)">初回設定</h2><p class="lead" style="font-size:12px;color:var(--muted)">SupabaseのURLとキー（anon/publishable）を貼ってください。この端末に記憶され次回以降は不要です。</p><label class="sub" style="border:0;margin:8px 0 4px">Project URL</label><input id="c_url" placeholder="https://xxxx.supabase.co"><label class="sub" style="border:0;margin:10px 0 4px">anon / publishable キー</label><input id="c_key" placeholder="eyJ... / sb_publishable_..."><button class="act" id="c_save" style="margin-top:12px;width:100%">保存して始める</button>`);el('c_save').onclick=()=>{const u=el('c_url').value.trim(),k=el('c_key').value.trim();if(!u||!k){alert('両方入れてください');return;}localStorage.setItem('jp_sb_url',u);localStorage.setItem('jp_sb_key',k);location.reload();};}
-async function afterLogin(){await loadSites();await loadStaff();render();}
+async function afterLogin(){await loadSites();await loadStaff();await loadPrefs();render();}
+async function loadPrefs(){S.prefs=((await sb.from('prefectures').select('*')).data)||[];}
 async function loadStaff(){S.staff=((await sb.from('staff').select('*').order('name')).data)||[];}
 async function loadSites(){const {data,error}=await sb.from('sites').select('*').order('name');if(error){alert('読込エラー: '+error.message);return;}S.sites=data||[];if(!S.site&&S.sites.length)S.site=S.sites[0].id;if(S.site)await loadSite(S.site);}
 async function loadSite(id){S.site=id;const {data:fields}=await sb.from('fields').select('*, parcels(*)').eq('site_id',id).order('name');S.fields=fields||[];if((!S.field||!S.fields.find(f=>f.id===S.field))&&S.fields.length)S.field=S.fields[0].id;if((!S.entryField||!S.fields.find(f=>f.id===S.entryField))&&S.fields.length)S.entryField=S.fields[0].id;const fids=S.fields.map(f=>f.id);S.trees=[];if(fids.length){let _tf=0;for(;;){const _r=await sb.from('trees').select('*').in('field_id',fids).range(_tf,_tf+999);const _d=_r.data||[];S.trees=S.trees.concat(_d);if(_d.length<1000)break;_tf+=1000;}}const tids=S.trees.map(t=>t.id);S.meas=[];for(let i=0;i<tids.length;i+=150){const r=await sb.from('measurements').select('*').in('tree_id',tids.slice(i,i+150)).order('measured_on');if(r.data)S.meas=S.meas.concat(r.data);}const seen={},dd=[];const sc=x=>(x.co2_kg!=null?2:0)+(x.height_m!=null?1:0)+(x.dbh_cm!=null?1:0)+(x.root_d_cm!=null?1:0);S.meas.forEach(m=>{const k=m.tree_id+'|'+m.measured_on;if(!(k in seen)){seen[k]=dd.length;dd.push(m);}else if(sc(m)>sc(dd[seen[k]])){dd[seen[k]]=m;}});S.meas=dd.sort((a,b)=>String(a.measured_on).localeCompare(String(b.measured_on)));S.worklogs=fids.length?((await sb.from('work_logs').select('*').in('field_id',fids).order('work_date',{ascending:false})).data||[]):[];if(!S.sops.length){S.sops=((await sb.from('sops').select('*').order('sort_order')).data)||[];}await loadCredit(id);}
@@ -216,11 +217,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc6 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc7 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc6（クレジット：方法論ごとの固有要件＋J-クレジット森林分野の作り込み）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc7（全国概況に 地方→都道府県→拠点 の階層表示を追加）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -236,13 +237,38 @@ function renderLogin(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
   el('reset').onclick=()=>{localStorage.removeItem('jp_sb_url');localStorage.removeItem('jp_sb_key');location.reload();};}
 
 /* ===== 全国マップ ===== */
+const REGION_ORDER=['北海道','東北','関東','中部','北陸','近畿','中国','四国','九州','沖縄'];
+function viewJpRegions(){
+  const D=S.dash;
+  const prefByCode={};(S.prefs||[]).forEach(pr=>prefByCode[pr.code]=pr);
+  const reg={};
+  S.sites.forEach(s=>{const pr=prefByCode[s.prefecture_code];const region=pr?pr.region_block:'未設定';const pc=s.prefecture_code||'_';(reg[region]=reg[region]||{});(reg[region][pc]=reg[region][pc]||{name:pr?pr.name:'未設定',sites:[]}).sites.push(s);});
+  const agg=s=>{if(!(D&&D.fields))return null;const fs=D.fields.filter(f=>f.site_id===s.id);return{fields:fs.length,trees:fs.reduce((a,f)=>a+f.trees,0),measured:fs.reduce((a,f)=>a+f.measured,0),co2:fs.reduce((a,f)=>a+f.co2,0),cost:fs.reduce((a,f)=>a+f.cost,0)};};
+  const present=REGION_ORDER.filter(r=>reg[r]).concat(Object.keys(reg).filter(r=>!REGION_ORDER.includes(r)));
+  let html='';
+  present.forEach(region=>{
+    const prefs=reg[region];const rT={fields:0,trees:0,co2:0,sites:0,has:false};
+    Object.values(prefs).forEach(o=>o.sites.forEach(s=>{rT.sites++;const a=agg(s);if(a){rT.has=true;rT.fields+=a.fields;rT.trees+=a.trees;rT.co2+=a.co2;}}));
+    let prefHtml='';
+    Object.keys(prefs).sort().forEach(pc=>{const o=prefs[pc];const pT={fields:0,trees:0,co2:0};
+      const siteRows=o.sites.map(s=>{const a=agg(s);if(a){pT.fields+=a.fields;pT.trees+=a.trees;pT.co2+=a.co2;}const stat=a?`<span class="dmuted" style="font-size:12px">圃場 ${a.fields}・個体 ${fmtT(a.trees)}（測定 ${a.trees?Math.round(a.measured/a.trees*100):0}%）・CO₂ ${a.co2.toFixed(2)}t</span>`:'<span class="dmuted" style="font-size:12px">集計中…</span>';
+        return `<div class="fb-row" style="grid-template-columns:1fr auto;gap:10px;align-items:center;padding:5px 0"><div><b style="font-size:13px">${esc(s.name)}</b><div>${stat}</div></div><button class="act gh sm" onclick="openSiteFromMap('${esc(s.id)}')">開く</button></div>`;}).join('');
+      prefHtml+=`<div style="margin:8px 0 2px;padding-left:6px;border-left:3px solid var(--leaf)"><div style="font-weight:700;font-size:13px;color:var(--forest)">${esc(o.name)} <span class="dmuted" style="font-weight:400;font-size:11px">${o.sites.length}拠点${pT.fields?` ・ 圃場 ${pT.fields} ・ 個体 ${fmtT(pT.trees)} ・ CO₂ ${pT.co2.toFixed(2)}t`:''}</span></div>${siteRows}</div>`;});
+    html+=`<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding-bottom:6px">
+        <div class="mincho" style="font-weight:700;font-size:15px;color:var(--forest2)">${esc(region)}地方</div>
+        <div class="dmuted" style="font-size:12px">${rT.sites}拠点${rT.has?` ・ 圃場 ${rT.fields} ・ 個体 ${fmtT(rT.trees)} ・ CO₂ ${rT.co2.toFixed(2)}t`:''}</div>
+      </div>${prefHtml}</div>`;
+  });
+  return `<div class="card"><h2>地方・都道府県別</h2><p class="lead">全国の拠点を 地方 → 都道府県 → 拠点 の階層で表示します。各拠点の「開く」で地区マップへ移動します。</p>${html||'<p class="lead">拠点がありません。</p>'}</div>`;
+}
 function viewJp(){
   const withxy=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
   const note=withxy.length?'':'<div class="banner">拠点の緯度経度が未設定です。<b>migrate_拠点座標.sql</b> をSupabaseで実行すると、地図に拠点が表示されます。</div>';
   const mapCard=`<div class="card"><h2>全国マップ・概況</h2><p class="lead">ピンをクリックすると、その拠点の概要（圃場数・個体・測定率・CO₂・作業費・証拠整備率）が吹き出しで表示されます。「この拠点を開く」で地区マップへ。ピンはドラッグで微調整でき、離すと保存されます。下に全国の集計サマリーを表示します。</p>
    <div id="jpmap" style="height:46vh;min-height:300px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
    ${note}</div>`;
-  return mapCard + viewDash(true);
+  return mapCard + viewJpRegions() + viewDash(true);
 }
 async function initJpMap(){
   const box=el('jpmap'); if(!box)return;
