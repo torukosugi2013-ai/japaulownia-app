@@ -216,11 +216,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc5 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc6 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc5（クレジット：関係者・契約台帳と実施記録、書類の版・提出日を追加）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc6（クレジット：方法論ごとの固有要件＋J-クレジット森林分野の作り込み）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -774,25 +774,29 @@ const ccReqStLabel=s=>(CC_REQ_ST.find(x=>x[0]===s)||[s,s])[1];
 /* 必要書類・情報テンプレート（[req_code, 名称, 紐づく工程step_code, 区分]） */
 const CC_REQS={
   'J-Credit':[
-    ['ACCOUNT_FORM','口座開設申請書（登録簿システム）','ACCOUNT','手続'],
-    ['PLAN_DOC','プロジェクト計画書','PLAN','書類'],
-    ['METHOD_BASIS','適用方法論の選定・適用根拠','PLAN','情報'],
-    ['ESTIMATE','排出削減・吸収量の見込み算定','PLAN','データ'],
-    ['LAND_RIGHTS','土地・権利関係書類（地番・所有者）','PLAN','書類'],
-    ['ADDITIONALITY','追加性の根拠','PLAN','情報'],
+    ['ACCOUNT_FORM','登録簿システム 口座開設申請','ACCOUNT','手続'],
+    ['FOREST_PLAN','森林経営計画（森林法に基づく）','PLAN','書類'],
+    ['PLAN_DOC','プロジェクト計画書（森林管理プロジェクト用）','PLAN','書類'],
+    ['METHOD_BASIS','適用方法論の選定・適用根拠（FO-001/002/003）','PLAN','情報'],
+    ['APPLY_COND','適用条件の確認（間伐計画・土地転用なし 等）','PLAN','情報'],
+    ['LAND_RIGHTS','権利関係書類（土地・立木・入会権 等）','PLAN','書類'],
+    ['BRIEFING_REC','説明会の実施記録（権利者・永続性確認）','PLAN','書類'],
+    ['ESTIMATE','吸収量の見込み算定','PLAN','データ'],
+    ['ADDITIONALITY','追加性の評価（要否の確認を含む）','PLAN','情報'],
+    ['ENV_SOCIAL','環境社会配慮の確認','PLAN','情報'],
     ['VAL_CONTRACT','妥当性確認の依頼・契約（審査機関）','VALIDATION','手続'],
     ['VAL_REPORT','妥当性確認報告書','VALIDATION','書類'],
     ['REG_FORM','プロジェクト登録申請書','REGISTRATION','書類'],
-    ['COMMITTEE_DOC','認証委員会 提出資料','REGISTRATION','書類'],
+    ['COMMITTEE_DOC','認証委員会 提出資料（登録）','REGISTRATION','書類'],
     ['AGREEMENT_J','約款・同意書類','REGISTRATION','手続'],
     ['MON_PLAN','モニタリング計画','MONITORING','書類'],
-    ['MON_DATA','計測データ（樹高・DBH等）','MONITORING','データ'],
+    ['MON_DATA','計測データ（施業面積・幹材積 等）','MONITORING','データ'],
     ['MON_REPORT','モニタリング報告書','MONITORING','書類'],
     ['VER_CONTRACT','検証の依頼・契約（審査機関）','VERIFICATION','手続'],
     ['VER_REPORT','検証報告書','VERIFICATION','書類'],
-    ['CERT_FORM','クレジット認証申請書','ISSUANCE','書類'],
+    ['CERT_FORM','クレジット認証申請書（認証委員会）','ISSUANCE','書類'],
     ['PERMANENCE_DOC','永続性担保措置 関係書類','PERMANENCE','書類'],
-    ['PERMANENCE_REP','森林管理の継続報告（10年）','PERMANENCE','手続'],
+    ['PERMANENCE_REP','永続性担保期間の年次報告（毎年 森林経営計画の写し・10年）','PERMANENCE','手続'],
   ],
   'VCS':[
     ['REG_ACCOUNT','Verra Registry 口座開設','ACCOUNT','手続'],
@@ -834,8 +838,74 @@ const CC_REQS={
   ],
 };
 const ccReqTpl=scheme=>CC_REQS[scheme]||CC_REQS['other'];
-const CC_PARTY_ROLES=['VVB（妥当性確認）','VVB（検証）','設備監査（VVB）','審査機関','コンサル/開発支援','登録簿運営','買い手','その他'];
+const CC_PARTY_ROLES=['VVB（妥当性確認）','VVB（検証）','設備監査（VVB）','審査機関','認証委員会/制度管理者','プログラム型運営・管理者','コンサル/開発支援','登録簿運営','買い手','その他'];
 const CC_PARTY_ST=[['planned','予定'],['active','進行中'],['done','完了']];
+/* 方法論ごとの固有要件（[req_code, 名称, 紐づく工程, 区分]） */
+const CC_METHOD_REQS={
+  'FO-001':[
+    ['FO001_PLAN_UNIT','森林経営計画単位での登録（計画の認定番号・期間）','PLAN','情報'],
+    ['FO001_THINNING','間伐等の施業計画（1か所以上）','PLAN','情報'],
+    ['FO001_AREA','施業面積の実測（コンパス測量/ドローン・オルソ、精度要件）','MONITORING','データ'],
+    ['FO001_VOLUME','幹材積成長量・幹材積量（収穫予想表等）','MONITORING','データ'],
+    ['FO001_SITE','地位の特定（育成林・モニタリングプロット）','MONITORING','データ'],
+    ['FO001_PHOTO','検証ごとの森林写真（林内・林床・林冠）','MONITORING','データ'],
+    ['FO001_HARVEST','主伐・再造林の扱い（該当時：再造林モニタリング）','MONITORING','情報'],
+  ],
+  'FO-002':[
+    ['FO002_PLAN_NO','森林経営/施業計画の認定番号・認定期間（未認定なら報告書に記載）','PLAN','情報'],
+    ['FO002_PROOF','施業実施の証明（造林届・補助事業書類・植栽木の写真・作業日誌）','MONITORING','書類'],
+    ['FO002_AREA','施業面積の実測（コンパス測量/ドローン・オルソ、精度要件）','MONITORING','データ'],
+    ['FO002_VOLUME','幹材積成長量・幹材積量（収穫予想表等）','MONITORING','データ'],
+    ['FO002_SITE','地位の特定（育成林・モニタリングプロット）','MONITORING','データ'],
+    ['FO002_PHOTO','検証ごとの森林写真（林内・林床・林冠／林齢11年以上は2枚）','MONITORING','データ'],
+    ['FO002_DEFAULT','容積密度・拡大係数・地下部率（デフォルト値の確認）','MONITORING','情報'],
+  ],
+  'FO-003':[
+    ['FO003_REPLANT','再造林の記録（造林届・植栽記録）','PLAN','書類'],
+    ['FO003_PROOF','施業実施の証明（補助事業書類・植栽木の写真・作業日誌）','MONITORING','書類'],
+    ['FO003_AREA','施業面積の実測','MONITORING','データ'],
+    ['FO003_VOLUME','幹材積成長量・幹材積量','MONITORING','データ'],
+    ['FO003_PHOTO','検証ごとの森林写真','MONITORING','データ'],
+  ],
+  'AG-004':[
+    ['AG004_BIOCHAR','バイオ炭の製造・調達記録（原料・製法）','MONITORING','書類'],
+    ['AG004_CARBON','バイオ炭の炭素含有率・品質（H/Corg等）','MONITORING','データ'],
+    ['AG004_APPLY','農地への施用量・施用記録（施用面積・日付）','MONITORING','データ'],
+  ],
+  'EN-R-004':[
+    ['ENR004_FUEL','バイオエタノール使用量の計量記録','MONITORING','データ'],
+    ['ENR004_SOURCE','原料・由来の証明（持続可能性）','PLAN','書類'],
+  ],
+  'VM0047':[
+    ['VM0047_STRATA','区画(strata)の設定・対象地の適格性','PDD','情報'],
+    ['VM0047_BASELINE','ベースライン（既存植生・土地履歴）','PDD','データ'],
+    ['VM0047_PLOTS','サンプルプロットによるバイオマス計測','MONITORING','データ'],
+    ['VM0047_BUFFER','非永続性リスク評価・バッファ拠出','BUFFER','データ'],
+  ],
+  'VM0044':[
+    ['VM0044_FEEDSTOCK','原料(feedstock)の種類・調達記録','PDD','書類'],
+    ['VM0044_PROD','バイオ炭の生産データ（収率・条件）','MONITORING','データ'],
+    ['VM0044_HC','H/Corg比など炭素安定性の試験','MONITORING','データ'],
+    ['VM0044_APPLY','施用先・施用量の記録','MONITORING','データ'],
+  ],
+  'biochar':[
+    ['PURO_BC_LCA','LCA（ライフサイクルアセスメント）','AUDITPKG','データ'],
+    ['PURO_BC_HC','H/Corg比・炭素安定性の試験','AUDITPKG','データ'],
+    ['PURO_BC_APPLY','施用・最終用途の記録','OUTPUT','データ'],
+  ],
+  'TSB':[
+    ['PURO_TSB_MASS','バイオマスの種類・乾燥重量・炭素量','AUDITPKG','データ'],
+    ['PURO_TSB_STORE','貯蔵環境・隔離条件（100年以上）の証明','AUDITPKG','書類'],
+    ['PURO_TSB_LCA','LCA（排出と除去の収支）','AUDITPKG','データ'],
+  ],
+  'wooden':[
+    ['PURO_WB_MASS','木材製品の数量・炭素貯蔵量','AUDITPKG','データ'],
+    ['PURO_WB_LIFE','建材としての耐用年数（最低50年）の根拠','AUDITPKG','書類'],
+    ['PURO_WB_LCA','LCA / EPD','AUDITPKG','データ'],
+  ],
+};
+function ccMethodCode(scheme,methodology){if(!methodology)return null;const arr=CC_METHODS[scheme]||[];const hit=arr.find(([,l])=>l===methodology);return hit?hit[0]:null;}
+function ccMethodReqAdded(projId,code){if(!code)return false;const codes=new Set((CC_METHOD_REQS[code]||[]).map(x=>x[0]));return (S.reqs||[]).some(r=>r.project_id===projId&&codes.has(r.req_code));}
 const CC_STAGE_ST=[['notstarted','未着手'],['inprogress','進行中'],['done','完了']];
 const CC_STAGE_COL={notstarted:'#9a9384',inprogress:'#c8742d',done:'#3a7d52'};
 const CC_TXN=[['sale','売却'],['transfer','移転'],['retirement','無効化'],['adjustment','調整']];
@@ -884,6 +954,25 @@ function viewCredit(){
     <p class="lead" style="font-size:11px;margin-top:6px">※ 推定CO₂ストックは各圃場の生存個体の最新計測値の合計（中根2008式）です。認証量そのものではなく進捗の目安です。MRVの確定値は検証後に下の「発行クレジット」へ登録してください。</p>
   </div>`;
 
+  let jCard='';
+  if(p.scheme==='J-Credit'){
+    const cs=p.crediting_start,ce=p.crediting_end;let yrs='—',permEnd='—';
+    if(cs&&ce){const y=(new Date(ce)-new Date(cs))/(365.25*864e5);yrs=fmt(y,1)+'年';const pe=new Date(ce);pe.setFullYear(pe.getFullYear()+10);permEnd=pe.toISOString().slice(0,10);}
+    jCard=`<div class="card" style="border-color:var(--gold)"><h2 style="color:var(--gold)">J-クレジット（森林分野）の要点</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">認証対象期間</div><div class="v">${yrs}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">森林経営は8〜16年で任意設定</div></div>
+        <div class="stat"><div class="k">永続性担保 期限</div><div class="v" style="font-size:15px">${permEnd}</div><div style="font-size:10px;color:var(--muted);margin-top:2px">認証対象期間 終了後10年</div></div>
+      </div>
+      <p class="lead" style="margin-top:10px;font-size:12.5px;line-height:1.75">
+        ・登録・認証は<b>認証委員会</b>の審議を経ます（年5回程度／締切は開催の約2〜3週間前）。スケジュールは工程の期限に入れてください。<br>
+        ・<b>森林経営計画</b>単位で登録します（森林法に基づく計画）。土地・立木・入会権などの<b>権利関係書類</b>と、必要に応じ<b>説明会の実施記録</b>が要ります。<br>
+        ・実質のモニタリングは<b>施業面積</b>と<b>幹材積成長量／幹材積量</b>が中心（面積はコンパス測量/ドローン・オルソ、材積は収穫予想表等）。検証ごとに<b>森林写真</b>の添付も必要です。<br>
+        ・<b>永続性担保措置</b>：認証対象期間中および終了後10年、毎年 森林経営計画の写しを提出します。<br>
+        ・方法論：森林経営は<b>FO-001</b>、新規植林は<b>FO-002（植林活動）</b>、伐採後の植え直しは<b>FO-003（再造林活動）</b>。早成桐の新植は通常FO-002が対象です（適用条件・固有要件は方法論ごとに異なります）。
+      </p>
+    </div>`;
+  }
+
   const stages=(S.stages||[]).filter(s=>s.project_id===p.id).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
   let stageCard;
   if(!stages.length){
@@ -908,10 +997,14 @@ function viewCredit(){
   }
 
   const reqs=(S.reqs||[]).filter(r=>r.project_id===p.id);
+  const mCode=ccMethodCode(p.scheme,p.methodology);
+  const mReqs=mCode?(CC_METHOD_REQS[mCode]||[]):[];
+  const mCodes=new Set(mReqs.map(x=>x[0]));
+  const mAdded=ccMethodReqAdded(p.id,mCode);
   let reqCard;
   if(!reqs.length){
-    const rtpl=ccReqTpl(p.scheme);
-    reqCard=`<div class="card"><h2>必要書類・情報の管理</h2><p class="lead">${esc(ccSchemeLabel(p.scheme))}の申請に必要な書類・情報（${rtpl.length}項目）を、工程に紐づけて一覧化します。生成後、状態・担当・期限・保存先(URL)を入れて管理できます。</p><button class="act" id="cc_seedreq">必要書類リストを生成</button></div>`;
+    const rtpl=ccReqTpl(p.scheme);const total=rtpl.length+mReqs.length;
+    reqCard=`<div class="card"><h2>必要書類・情報の管理</h2><p class="lead">${esc(ccSchemeLabel(p.scheme))}の申請に必要な書類・情報（共通${rtpl.length}＋方法論固有${mReqs.length}＝${total}項目）を、工程に紐づけて一覧化します。${mCode?`方法論：<b>${esc(p.methodology)}</b>`:'<b>方法論を設定すると、その固有項目も一緒に生成されます。</b>'}</p><button class="act" id="cc_seedreq">必要書類リストを生成</button></div>`;
   }else{
     const stepName={};ccStageTpl(p.scheme).forEach(([c,n],i)=>stepName[c]={n,i});
     const grp={};reqs.forEach(r=>{const k=r.step_code||'_';(grp[k]=grp[k]||[]).push(r);});
@@ -919,9 +1012,10 @@ function viewCredit(){
     const apprN=reqs.filter(r=>r.status==='approved').length;
     const subN=reqs.filter(r=>r.status==='submitted'||r.status==='approved').length;
     const catBadge=c=>c?`<span style="font-size:10px;border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--muted);margin-left:6px">${esc(c)}</span>`:'';
+    const mBadge=r=>mCodes.has(r.req_code)?` <span style="font-size:10px;border:1px solid var(--gold);color:var(--gold);border-radius:4px;padding:1px 5px;margin-left:4px">方法論</span>`:'';
     const linkBtn=u=>(u&&/^https?:\/\//.test(u))?` <a href="${esc(u)}" target="_blank" rel="noopener" style="font-size:11px;color:var(--forest2)">開く↗</a>`:'';
     const rowFor=r=>`<tr>
-      <td style="min-width:170px"><strong style="font-size:13px">${esc(r.req_name)}</strong>${catBadge(r.category)}</td>
+      <td style="min-width:170px"><strong style="font-size:13px">${esc(r.req_name)}</strong>${catBadge(r.category)}${mBadge(r)}</td>
       <td><select data-req="${r.id}" data-k="status" style="font-size:12px;border-left:4px solid ${CC_REQ_COL[r.status]||'#ccc'}">${CC_REQ_ST.map(([v,l])=>`<option value="${v}" ${r.status===v?'selected':''}>${l}</option>`).join('')}</select></td>
       <td><input data-req="${r.id}" data-k="version" value="${esc(r.version||'')}" placeholder="v1" style="width:48px;font-size:12px"></td>
       <td><input type="date" data-req="${r.id}" data-k="submitted_on" value="${r.submitted_on||''}" style="font-size:12px"></td>
@@ -932,12 +1026,14 @@ function viewCredit(){
       <td style="white-space:nowrap"><button class="act gh sm" data-reqsave="${r.id}">保存</button> <button class="act gh sm" data-reqdel="${r.id}">×</button></td></tr>`;
     let body='';
     order.forEach(k=>{const title=stepName[k]?stepName[k].n:(k==='_'?'未分類':k);body+=`<tr><td colspan="9" style="background:rgba(58,125,82,.10);font-weight:700;padding:6px 8px;font-size:12.5px">${esc(title)}</td></tr>`+grp[k].map(rowFor).join('');});
+    const addMethBtn=(mCode&&!mAdded)?`<div style="margin-bottom:10px"><button class="act sm" id="cc_addmethreq">＋ 方法論〔${esc(p.methodology)}〕の固有要件（${mReqs.length}項目）を追加</button></div>`:'';
     reqCard=`<div class="card"><h2>必要書類・情報の管理</h2>
       <div class="stats" style="margin-bottom:10px">
         <div class="stat"><div class="k">項目数</div><div class="v">${reqs.length}</div></div>
         <div class="stat"><div class="k">提出済+承認</div><div class="v">${subN}<small>/${reqs.length}</small></div></div>
         <div class="stat"><div class="k">承認済</div><div class="v" style="color:var(--forest)">${apprN}<small>/${reqs.length}</small></div></div>
       </div>
+      ${addMethBtn}
       <div style="overflow-x:auto"><table><thead><tr><th>必要書類・情報</th><th>状態</th><th>版</th><th>提出日</th><th>担当</th><th>期限</th><th>保存先</th><th>備考</th><th></th></tr></thead><tbody>${body}</tbody></table></div>
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)">
         <div class="controls">
@@ -1075,7 +1171,7 @@ function viewCredit(){
 
   const delCard=`<div class="card"><details><summary style="cursor:pointer;color:var(--danger);font-weight:700;font-size:13px">このプロジェクトを削除</summary><p class="lead" style="margin-top:8px">工程・発行ロット・取引もまとめて削除されます。元に戻せません。</p><button class="act gh sm" id="cc_delproj" style="color:var(--danger);border-color:var(--danger)">削除する</button></details></div>`;
 
-  return head+infoCard+stageCard+reqCard+partiesCard+activitiesCard+issCard+txCard+delCard;
+  return head+infoCard+jCard+stageCard+reqCard+partiesCard+activitiesCard+issCard+txCard+delCard;
 }
 
 /* ===== カメラ計測（標尺・基準スケール法） ===== */
@@ -1200,7 +1296,8 @@ function bind(){
   document.querySelectorAll('[data-deliss]').forEach(b=>b.onclick=async()=>{if(!confirm('この発行ロットを削除しますか？（紐づく取引も削除されます）'))return;await sb.from('cc_issuances').delete().eq('id',b.dataset.deliss);await loadCredit(S.site);render();});
   const ctAdd=el('ct_add');if(ctAdd)ctAdd.onclick=async()=>{const v=el('ct_tco2').value;if(v===''){el('ctmsg').innerHTML='<span class="bad">数量を入れてください。</span>';return;}const date=el('ct_date').value;if(!date){el('ctmsg').innerHTML='<span class="bad">日付を入れてください。</span>';return;}const price=el('ct_price').value,amtRaw=el('ct_amt').value;const amt=amtRaw!==''?+amtRaw:(price!==''?(+price*+v):null);const {error}=await sb.from('cc_transactions').insert({issuance_id:el('ct_iss').value,txn_type:el('ct_type').value,txn_date:date,tco2:+v,counterparty:el('ct_cp').value||null,unit_price_yen:price===''?null:+price,amount_yen:amt,purpose:el('ct_purpose').value||null,created_by:S.session.user.id});if(error){el('ctmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
   document.querySelectorAll('[data-deltx]').forEach(b=>b.onclick=async()=>{if(!confirm('この取引を削除しますか？'))return;await sb.from('cc_transactions').delete().eq('id',b.dataset.deltx);await loadCredit(S.site);render();});
-  const ccSeedReq=el('cc_seedreq');if(ccSeedReq)ccSeedReq.onclick=async()=>{const pr=(S.projects||[]).find(x=>x.id===S.creditProj);const tpl=ccReqTpl(pr&&pr.scheme);const rows=tpl.map(([code,name,step,cat],i)=>({project_id:S.creditProj,req_code:code,req_name:name,step_code:step,category:cat,sort_order:i}));const {error}=await sb.from('cc_requirements').insert(rows);if(error){alert(error.message);return;}await loadCredit(S.site);render();};
+  const ccSeedReq=el('cc_seedreq');if(ccSeedReq)ccSeedReq.onclick=async()=>{const pr=(S.projects||[]).find(x=>x.id===S.creditProj);const tpl=ccReqTpl(pr&&pr.scheme);const mc=ccMethodCode(pr&&pr.scheme,pr&&pr.methodology);const mt=mc?(CC_METHOD_REQS[mc]||[]):[];const all=tpl.concat(mt);const rows=all.map(([code,name,step,cat],i)=>({project_id:S.creditProj,req_code:code,req_name:name,step_code:step,category:cat,sort_order:i}));const {error}=await sb.from('cc_requirements').insert(rows);if(error){alert(error.message);return;}await loadCredit(S.site);render();};
+  const ccAddMeth=el('cc_addmethreq');if(ccAddMeth)ccAddMeth.onclick=async()=>{const pr=(S.projects||[]).find(x=>x.id===S.creditProj);const mc=ccMethodCode(pr&&pr.scheme,pr&&pr.methodology);if(!mc)return;const existing=new Set((S.reqs||[]).filter(r=>r.project_id===S.creditProj).map(r=>r.req_code));const base=Math.max(0,...((S.reqs||[]).filter(r=>r.project_id===S.creditProj).map(r=>r.sort_order||0)));const rows=(CC_METHOD_REQS[mc]||[]).filter(([code])=>!existing.has(code)).map(([code,name,step,cat],i)=>({project_id:S.creditProj,req_code:code,req_name:name,step_code:step,category:cat,sort_order:base+1+i}));if(rows.length){const {error}=await sb.from('cc_requirements').insert(rows);if(error){alert(error.message);return;}}await loadCredit(S.site);render();};
   document.querySelectorAll('[data-reqsave]').forEach(btn=>btn.onclick=async()=>{const id=btn.dataset.reqsave;const g=k=>{const e=document.querySelector(`[data-req="${id}"][data-k="${k}"]`);return e?e.value:null;};const {error}=await sb.from('cc_requirements').update({status:g('status'),version:g('version')||null,submitted_on:g('submitted_on')||null,responsible:g('responsible')||null,due_date:g('due_date')||null,doc_ref:g('doc_ref')||null,note:g('note')||null}).eq('id',id);if(error){alert(error.message);return;}await loadCredit(S.site);render();});
   document.querySelectorAll('[data-reqdel]').forEach(b=>b.onclick=async()=>{if(!confirm('この項目を削除しますか？'))return;await sb.from('cc_requirements').delete().eq('id',b.dataset.reqdel);await loadCredit(S.site);render();});
   const crAdd=el('cr_add');if(crAdd)crAdd.onclick=async()=>{const name=el('cr_name').value.trim();if(!name){el('crmsg').innerHTML='<span class="bad">名称を入れてください。</span>';return;}const so=Math.max(0,...((S.reqs||[]).filter(r=>r.project_id===S.creditProj).map(r=>r.sort_order||0)))+1;const {error}=await sb.from('cc_requirements').insert({project_id:S.creditProj,req_name:name,step_code:el('cr_step').value||null,category:el('cr_cat').value||null,sort_order:so});if(error){el('crmsg').innerHTML=`<span class="bad">${esc(error.message)}</span>`;return;}await loadCredit(S.site);render();};
