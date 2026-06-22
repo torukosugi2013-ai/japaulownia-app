@@ -152,8 +152,10 @@ footer{text-align:center;color:var(--muted);font-size:11px;margin-top:24px;paddi
 .caldnum{font-size:11px;color:var(--muted);font-weight:700;line-height:1}
 .calchip{font-size:10px;border-radius:4px;padding:1px 4px;margin-top:2px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5;cursor:default}
 @media(max-width:720px){.calcell{min-height:54px}.calchip{font-size:9px}}
-.leaflet-tooltip.jp-tip{background:#fff;border:1px solid #2f4a32;border-radius:9px;font-size:11px;line-height:1.4;padding:4px 8px;box-shadow:0 2px 6px rgba(0,0,0,.28);color:#1f2a1f;font-weight:500}
-.leaflet-tooltip.jp-tip b{color:#2f4a32}
+.leaflet-tooltip.jp-tip{background:#fff;border:1px solid #d8d2c4;border-radius:9px;font-size:11px;line-height:1.4;padding:3px 8px;box-shadow:0 2px 7px rgba(0,0,0,.22);color:#1f2a1f;font-weight:500}
+.leaflet-tooltip.jp-tip b{color:#1f2a1f}
+.jp-pin{background:transparent;border:0;filter:drop-shadow(0 2px 3px rgba(35,41,31,.35))}
+.leaflet-tooltip.jp-tip:before{display:none}
 </style>
 </head>
 <body>
@@ -218,11 +220,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc12 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc14 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='budget'?'on':''}" data-tab="budget">予算</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc12（予実を項目別に：作業ログを予算項目へ割当てて項目ごとに対比）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc14（全国マップ刷新：地理院地図(日本語)＋地方色ピン＋色凡例）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -239,12 +241,16 @@ function renderLogin(){root.innerHTML=frame(`<h2 class="mincho" style="color:var
 
 /* ===== 全国マップ ===== */
 const REGION_ORDER=['北海道','東北','関東','中部','北陸','近畿','中国','四国','九州','沖縄'];
+const REGION_COLORS={'北海道':'#3d74c4','東北':'#3f9e8b','関東':'#3a7d52','中部':'#c8742d','北陸':'#7b6cc4','近畿':'#d4546a','中国':'#2f9ec4','四国':'#7fae3a','九州':'#e0a13b','沖縄':'#3fb59a'};
+function regionOf(s){const pr=(S.prefs||[]).find(p=>p.code===s.prefecture_code);return pr?pr.region_block:'その他';}
+function regionColor(r){return REGION_COLORS[r]||'#9a9384';}
+function jpPinSvg(color,dashed,faint){return `<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg"><path d="M15 1.5C7.5 1.5 1.5 7.5 1.5 15c0 8.2 10.8 19.3 12.8 21.4.4.4 1 .4 1.4 0C17.7 34.3 28.5 23.2 28.5 15 28.5 7.5 22.5 1.5 15 1.5z" fill="${color}" fill-opacity="${faint?0.72:1}" stroke="#ffffff" stroke-width="2.4" ${dashed?'stroke-dasharray="3.2 2.2"':''}/><circle cx="15" cy="14" r="4.4" fill="#ffffff"/></svg>`;}
 function viewJpRegions(){
   const D=S.dash;
   const prefByCode={};(S.prefs||[]).forEach(pr=>prefByCode[pr.code]=pr);
   const reg={};
   S.sites.forEach(s=>{const pr=prefByCode[s.prefecture_code];const region=pr?pr.region_block:'未設定';const pc=s.prefecture_code||'_';(reg[region]=reg[region]||{});(reg[region][pc]=reg[region][pc]||{name:pr?pr.name:'未設定',sites:[]}).sites.push(s);});
-  const agg=s=>{if(!(D&&D.fields))return null;const fs=D.fields.filter(f=>f.site_id===s.id);return{fields:fs.length,trees:fs.reduce((a,f)=>a+f.trees,0),measured:fs.reduce((a,f)=>a+f.measured,0),co2:fs.reduce((a,f)=>a+f.co2,0),cost:fs.reduce((a,f)=>a+f.cost,0),area:fs.reduce((a,f)=>a+(f.area||0),0)};};
+  const agg=s=>{if(!(D&&D.fields))return null;const fs=D.fields.filter(f=>f.site_id===s.id);return{fields:fs.length,trees:fs.reduce((a,f)=>a+f.trees,0),ptr:fs.reduce((a,f)=>a+(f.ptrees||0),0),measured:fs.reduce((a,f)=>a+f.measured,0),co2:fs.reduce((a,f)=>a+f.co2,0),cost:fs.reduce((a,f)=>a+f.cost,0),area:fs.reduce((a,f)=>a+(f.area||0),0)};};
   const present=REGION_ORDER.filter(r=>reg[r]).concat(Object.keys(reg).filter(r=>!REGION_ORDER.includes(r)));
   let html='';
   present.forEach(region=>{
@@ -256,6 +262,7 @@ function viewJpRegions(){
         if(planned){pT.planned++;if(a)pT.pArea+=a.area;}else if(a){pT.fields+=a.fields;pT.trees+=a.trees;pT.co2+=a.co2;}
         let stat;
         if(planned){const ha=a?(a.area/10000).toFixed(1):'?';stat=`<span style="border:1px solid #c8742d;color:#a85c1f;border-radius:4px;padding:0 5px;font-size:11px;font-weight:700">想定</span> <span class="dmuted" style="font-size:12px">区画 ${a?a.fields:'—'}・約${ha}ha</span>`;}
+        else if(a&&a.trees===0&&a.ptr>0)stat=`<span style="border:1px dashed #2f4a32;color:#2f4a32;border-radius:4px;padding:0 5px;font-size:11px;font-weight:700">植樹前</span> <span class="dmuted" style="font-size:12px">圃場 ${a.fields}・予定 ${fmtT(a.ptr)}本・約${(a.area/10000).toFixed(2)}ha</span>`;
         else stat=a?`<span class="dmuted" style="font-size:12px">圃場 ${a.fields}・個体 ${fmtT(a.trees)}（測定 ${a.trees?Math.round(a.measured/a.trees*100):0}%）・CO₂ ${a.co2.toFixed(2)}t</span>`:'<span class="dmuted" style="font-size:12px">集計中…</span>';
         return `<div class="fb-row" style="grid-template-columns:1fr auto;gap:10px;align-items:center;padding:5px 0"><div><b style="font-size:13px">${esc(s.name)}</b><div>${stat}</div></div><button class="act gh sm" onclick="openSiteFromMap('${esc(s.id)}')">開く</button></div>`;}).join('');
       const psum=pT.planned?` ・ <span style="color:#a85c1f">想定 ${pT.planned}（約${(pT.pArea/10000).toFixed(1)}ha）</span>`:'';
@@ -274,9 +281,12 @@ function viewJp(){
   const note=withxy.length?'':'<div class="banner">拠点の緯度経度が未設定です。<b>migrate_拠点座標.sql</b> をSupabaseで実行すると、地図に拠点が表示されます。</div>';
   const ml={trees:'個体数',co2:'推定CO₂',pct:'測定率'};
   const metricSeg=seg('jpmetric',[['trees','個体数'],['co2','推定CO₂'],['pct','測定率']],S.jpMetric||'trees');
-  const mapCard=`<div class="card"><h2>全国マップ・概況</h2><p class="lead">円の大きさが選択中の指標（<b>${ml[S.jpMetric||'trees']}</b>）に比例します。円をクリックで拠点の概要、「この拠点を開く」で地区マップへ。円はドラッグで位置を微調整できます。</p>
-   <div class="controls" style="margin-bottom:10px"><div class="ctl"><span class="lab">円の大きさ＝</span>${metricSeg}</div></div>
+  const regionsPresent=[...new Set(S.sites.filter(s=>s.lat!=null).map(regionOf))].sort((a,b)=>REGION_ORDER.indexOf(a)-REGION_ORDER.indexOf(b));
+  const legend=`<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:10px;font-size:12px">${regionsPresent.map(r=>`<span style="display:inline-flex;align-items:center;gap:5px"><i style="width:12px;height:12px;border-radius:50%;background:${regionColor(r)};display:inline-block;border:1.5px solid #fff;box-shadow:0 0 0 1px ${regionColor(r)}"></i>${esc(r)}地方</span>`).join('')}<span class="dmuted" style="font-size:11px">｜ピンの色＝地方／破線＝想定・植樹前</span></div>`;
+  const mapCard=`<div class="card"><h2>全国マップ・概況</h2><p class="lead">日本語の地理院地図に、拠点をピンで表示します（ピンの色＝地方）。ピンの上のラベルに名称と選択中の指標（<b>${ml[S.jpMetric||'trees']}</b>）が出ます。クリックで概要、ドラッグで位置を微調整できます。</p>
+   <div class="controls" style="margin-bottom:10px"><div class="ctl"><span class="lab">ラベルの数値＝</span>${metricSeg}</div></div>
    <div id="jpmap" style="height:48vh;min-height:320px;border:1px solid var(--line);border-radius:14px;overflow:hidden"></div>
+   ${legend}
    ${note}</div>`;
   return mapCard + viewJpRegions() + viewDash(true);
 }
@@ -284,36 +294,33 @@ async function initJpMap(){
   const box=el('jpmap'); if(!box)return;
   if(!await ensureL()){box.innerHTML='<div style="padding:24px;color:#777;font-size:13px;text-align:center">地図ライブラリを読み込めませんでした。ネットワークを確認して再読み込みしてください。</div>';return;}
   const map=L.map('jpmap',{zoomControl:true});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(map);
+  L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{maxZoom:18,attribution:'地理院タイル（国土地理院）'}).addTo(map);
   const pts=S.sites.filter(s=>s.lat!=null&&s.lng!=null);
   const D=S.dash;const metric=S.jpMetric||'trees';
-  const aggOf=s=>{const fs=(D&&D.fields)?D.fields.filter(f=>f.site_id===s.id):[];return{fs,tr:fs.reduce((a,f)=>a+f.trees,0),me:fs.reduce((a,f)=>a+f.measured,0),co:fs.reduce((a,f)=>a+f.co2,0),cost:fs.reduce((a,f)=>a+f.cost,0),pc:fs.length?fs.reduce((a,f)=>a+f.pct,0)/fs.length:0};};
-  const valOf=s=>{const a=aggOf(s);if(metric==='co2')return a.co;if(metric==='pct')return a.tr?a.me/a.tr*100:0;return a.tr;};
-  const maxV=Math.max(1,...pts.map(valOf),(metric==='pct'?100:0));
+  const aggOf=s=>{const fs=(D&&D.fields)?D.fields.filter(f=>f.site_id===s.id):[];return{fs,tr:fs.reduce((a,f)=>a+f.trees,0),ptr:fs.reduce((a,f)=>a+(f.ptrees||0),0),me:fs.reduce((a,f)=>a+f.measured,0),co:fs.reduce((a,f)=>a+f.co2,0),cost:fs.reduce((a,f)=>a+f.cost,0),pc:fs.length?fs.reduce((a,f)=>a+f.pct,0)/fs.length:0};};
   if(pts.length){
     pts.forEach(s=>{
       const a=aggOf(s);const planned=s.status==='planned';
       const area=a.fs.reduce((x,f)=>x+(f.area||0),0);
-      let icon,sz;
-      if(planned){
-        sz=34;
-        const al=area?'約'+(area/10000).toFixed(area/10000>=1?0:1)+'ha':'想定';
-        icon=L.divIcon({className:'',html:`<div style="min-width:${sz}px;height:${sz}px;padding:0 7px;border-radius:17px;background:rgba(200,116,45,.16);border:2px dashed #c8742d;box-shadow:0 2px 7px rgba(35,41,31,.25);display:grid;place-items:center;color:#a85c1f;font-weight:700;font-size:11px;white-space:nowrap;font-family:'JetBrains Mono',monospace">想定</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
-      }else{
-        const v=valOf(s);sz=Math.round(22+Math.sqrt(Math.max(0,v)/maxV)*40);
-        const lab=metric==='co2'?(a.co>=10?Math.round(a.co)+'t':a.co.toFixed(1)+'t'):metric==='pct'?((a.tr?Math.round(a.me/a.tr*100):0)+'%'):fmtT(a.tr);
-        const fontSz=sz<34?10:12.5;
-        icon=L.divIcon({className:'',html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3e6043,#2f4a32);border:2px solid #fff;box-shadow:0 3px 10px rgba(35,41,31,.4);display:grid;place-items:center;color:#fff;font-weight:700;font-size:${fontSz}px;font-family:'JetBrains Mono',monospace">${lab}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
-      }
+      const preplant=!planned&&a.tr===0&&a.ptr>0;
+      const region=regionOf(s);const col=regionColor(region);
+      const icon=L.divIcon({className:'jp-pin',html:jpPinSvg(col,planned||preplant,planned),iconSize:[30,40],iconAnchor:[15,38],popupAnchor:[0,-34]});
       const m=L.marker([s.lat,s.lng],{draggable:true,icon}).addTo(map);
       const short=s.name.replace(/（.*/,'');
-      m.bindTooltip(planned?`<b>${esc(short)}</b>（想定）`:`<b>${esc(short)}</b>`,{permanent:true,direction:'top',offset:[0,-(sz/2)-3],opacity:0.96,className:'jp-tip'});
+      let vtxt,tag='';
+      if(planned){vtxt='約'+(area/10000).toFixed(area/10000>=1?0:1)+'ha';tag='想定';}
+      else if(preplant){vtxt=fmtT(a.ptr)+'本';tag='予定';}
+      else vtxt=metric==='co2'?(a.co.toFixed(a.co>=10?0:1)+'t'):metric==='pct'?((a.tr?Math.round(a.me/a.tr*100):0)+'%'):(fmtT(a.tr)+'本');
+      const tip=`<span style="border-left:3px solid ${col};padding-left:5px">${tag?`<span style="color:#a85c1f;font-weight:700">${tag}</span> `:''}<b>${esc(short)}</b> <span style="opacity:.75">${vtxt}</span></span>`;
+      m.bindTooltip(tip,{permanent:true,direction:'top',offset:[0,-30],opacity:0.98,className:'jp-tip'});
       let info;
       if(planned){
         const list=a.fs.map(f=>`${esc(f.name)}${f.area?'（約'+(f.area/10000).toFixed(f.area/10000>=1?0:1)+'ha）':''}`).join('、');
-        info=`<div style="margin-top:5px;font-size:12px;line-height:1.7"><span style="border:1px solid #c8742d;color:#a85c1f;border-radius:4px;padding:1px 6px;font-size:11px">拡張想定地</span><br><b>区画</b> ${a.fs.length}　<b>面積</b> 約${(area/10000).toFixed(1)}ha<br>${list||'—'}</div>`;
+        info=`<div style="margin-top:5px;font-size:12px;line-height:1.7"><span style="border:1px solid #c8742d;color:#a85c1f;border-radius:4px;padding:1px 6px;font-size:11px">拡張想定地</span>　<span style="color:${col};font-weight:700">${esc(region)}地方</span><br><b>区画</b> ${a.fs.length}　<b>面積</b> 約${(area/10000).toFixed(1)}ha<br>${list||'—'}</div>`;
+      }else if(preplant){
+        info=`<div style="margin-top:5px;font-size:12px;line-height:1.7"><span style="border:1px dashed #2f4a32;color:#2f4a32;border-radius:4px;padding:1px 6px;font-size:11px">植樹前</span>　<span style="color:${col};font-weight:700">${esc(region)}地方</span><br><b>予定本数</b> ${fmtT(a.ptr)}本　<b>面積</b> 約${(area/10000).toFixed(2)}ha<br><b>圃場</b> ${a.fs.length}${s.project_start?`<br><b>植樹予定</b> ${s.project_start}`:''}</div>`;
       }else{
-        info=(D&&D.fields)?`<div style="margin-top:5px;font-size:12px;line-height:1.7"><b>圃場</b> ${a.fs.length}　<b>個体</b> ${fmtT(a.tr)}本（測定 ${a.tr?Math.round(a.me/a.tr*100):0}%）<br><b>推定CO₂</b> ${a.co.toFixed(3)} t<br><b>作業費</b> ${a.cost?'¥'+Number(a.cost).toLocaleString('ja-JP'):'—'}<br><b>証拠整備率</b> ${a.pc.toFixed(1)}%</div>`:'<div style="margin-top:4px;font-size:12px;color:#777">概況を集計中…</div>';
+        info=(D&&D.fields)?`<div style="margin-top:5px;font-size:12px;line-height:1.7"><span style="color:${col};font-weight:700">${esc(region)}地方</span><br><b>圃場</b> ${a.fs.length}　<b>個体</b> ${fmtT(a.tr)}本（測定 ${a.tr?Math.round(a.me/a.tr*100):0}%）<br><b>推定CO₂</b> ${a.co.toFixed(3)} t<br><b>作業費</b> ${a.cost?'¥'+Number(a.cost).toLocaleString('ja-JP'):'—'}<br><b>証拠整備率</b> ${a.pc.toFixed(1)}%</div>`:'<div style="margin-top:4px;font-size:12px;color:#777">概況を集計中…</div>';
       }
       m.bindPopup(`<div style="min-width:190px"><b style="font-size:14px">${esc(s.name)}</b>${info}<button onclick="openSiteFromMap('${esc(s.id)}')" style="margin-top:8px;background:${planned?'#a85c1f':'#2f4a32'};color:#fff;border:0;border-radius:8px;padding:7px 10px;font-weight:700;cursor:pointer;width:100%">この拠点を開く</button></div>`);
       m.on('dragend',async e=>{const ll=e.target.getLatLng();s.lat=ll.lat;s.lng=ll.lng;await sb.from('sites').update({lat:ll.lat,lng:ll.lng}).eq('id',s.id);});
@@ -564,7 +571,7 @@ async function dpAll(table,cols){let all=[],from=0;const page=1000;for(;;){const
 async function loadDash(){
   try{
   const [fr,er,cr,wr]=await Promise.all([
-    sb.from('fields').select('id,site_id,name,area_sqm,manager,established_on,planted_date').limit(100000),
+    sb.from('fields').select('id,site_id,name,area_sqm,manager,established_on,planted_date,planned_trees').limit(100000),
     sb.from('field_evidence').select('field_id,er_code,status').limit(100000),
     sb.from('er_catalog').select('code,section').limit(2000),
     sb.from('work_logs').select('field_id,work_date,cost_yen,status,cost_type').limit(100000),
@@ -580,7 +587,7 @@ async function loadDash(){
   const evf={},sec={};
   ev.forEach(e=>{const a=evf[e.field_id]=evf[e.field_id]||{done:0,collecting:0,todo:0,total:0};a.total++;a[e.status]=(a[e.status]||0)+1;const sn=c2s[e.er_code]||'その他';const b=sec[sn]=sec[sn]||{done:0,collecting:0,todo:0,total:0};b.total++;b[e.status]=(b[e.status]||0)+1;});
   const sname={},sidx={};S.sites.forEach((s,i)=>{sname[s.id]=s.name;sidx[s.id]=i;});
-  const F=fields.map(f=>{const e0=evf[f.id]||{done:0,collecting:0,todo:0,total:51};const total=e0.total||51;const measured=mset[f.id]?mset[f.id].size:0;return{site_id:f.site_id,site:sname[f.site_id]||f.site_id,name:f.name,manager:f.manager||null,established:f.established_on||f.planted_date||null,area:f.area_sqm,trees:tfc[f.id]||0,measured,latest:mlatest[f.id]||null,co2:(mco2[f.id]||0)/1000,cost:wcost[f.id]||0,costPlan:wplan[f.id]||0,done:e0.done||0,collecting:e0.collecting||0,todo:e0.todo||0,evtotal:total,pct:((e0.done||0)+(e0.collecting||0)*0.5)/total*100};});
+  const F=fields.map(f=>{const e0=evf[f.id]||{done:0,collecting:0,todo:0,total:51};const total=e0.total||51;const measured=mset[f.id]?mset[f.id].size:0;return{site_id:f.site_id,site:sname[f.site_id]||f.site_id,name:f.name,manager:f.manager||null,established:f.established_on||f.planted_date||null,area:f.area_sqm,trees:tfc[f.id]||0,ptrees:f.planned_trees||0,measured,latest:mlatest[f.id]||null,co2:(mco2[f.id]||0)/1000,cost:wcost[f.id]||0,costPlan:wplan[f.id]||0,done:e0.done||0,collecting:e0.collecting||0,todo:e0.todo||0,evtotal:total,pct:((e0.done||0)+(e0.collecting||0)*0.5)/total*100};});
   F.sort((a,b)=>((sidx[a.site_id]??9)-(sidx[b.site_id]??9))||String(a.name).localeCompare(b.name,'ja'));
   const sections=Object.entries(sec).map(([k,v])=>({section:k,done:v.done,collecting:v.collecting,todo:v.todo,total:v.total})).sort((a,b)=>(parseInt(a.section)||99)-(parseInt(b.section)||99));
   S.dash={fields:F,sections,costMonthly:cMonth,costByType:cType,at:new Date()};
@@ -610,11 +617,11 @@ function viewDash(summaryOnly){
     ['証拠整備率',evPct.toFixed(1),'%',`整備済 ${eD}・収集中 ${eC} / ${eTot}`],
     ['作業費(実績)','¥'+tCost.toLocaleString('ja-JP'),'',tPlan?('予定 ¥'+tPlan.toLocaleString('ja-JP')):'作業費合計'],
   ];
-  const rollup=activeSites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.reduce((a,f)=>a+f.pct,0)/fs.length;
-    return `<tr><td><span class="spill">${esc(s.name)}</span></td><td class="num">${fs.length}</td><td class="num">${fmtT(tr)}</td><td class="num">${fmtT(me)}</td><td class="num">${co.toFixed(3)} t</td><td class="num">${cost?'¥'+cost.toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${pc}%;background:var(--dmoss)"></i></div><span class="dmuted" style="font-size:12px">${pc.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  const rollup=activeSites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),ptr=fs.reduce((a,f)=>a+(f.ptrees||0),0),me=fs.reduce((a,f)=>a+f.measured,0),co=fs.reduce((a,f)=>a+f.co2,0),cost=fs.reduce((a,f)=>a+f.cost,0),pc=fs.reduce((a,f)=>a+f.pct,0)/fs.length;
+    return `<tr><td><span class="spill">${esc(s.name)}</span>${tr===0&&ptr>0?' <span style="font-size:10px;border:1px dashed #2f4a32;color:#2f4a32;border-radius:4px;padding:0 4px">植樹前</span>':''}</td><td class="num">${fs.length}</td><td class="num">${tr===0&&ptr>0?'<span class="dmuted">予定 '+fmtT(ptr)+'</span>':fmtT(tr)}</td><td class="num">${fmtT(me)}</td><td class="num">${co.toFixed(3)} t</td><td class="num">${cost?'¥'+cost.toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${pc}%;background:var(--dmoss)"></i></div><span class="dmuted" style="font-size:12px">${pc.toFixed(1)}%</span></div></td></tr>`;}).join('');
   const maxTrees=Math.max(...Fa.map(f=>f.trees),1);
   const bars=activeSites.map(s=>{const fs=F.filter(f=>f.site_id===s.id);if(!fs.length)return '';const tr=fs.reduce((a,f)=>a+f.trees,0),me=fs.reduce((a,f)=>a+f.measured,0);
-    return `<div class="fb-site">${esc(s.name)}　<span class="dmuted" style="font-weight:400">個体 ${fmtT(tr)}・測定済 ${fmtT(me)}</span></div>`+fs.map(f=>{const mW=f.measured/maxTrees*100,rW=(f.trees-f.measured)/maxTrees*100;const val=f.trees===0?`<span class="fb-empty">植樹前</span>`:`<b>${fmtT(f.trees)}</b><small> 本</small><br><small>測定 ${fmtT(f.measured)}（${Math.round(f.measured/f.trees*100)}%）</small>`;
+    return `<div class="fb-site">${esc(s.name)}　<span class="dmuted" style="font-weight:400">個体 ${fmtT(tr)}・測定済 ${fmtT(me)}</span></div>`+fs.map(f=>{const mW=f.measured/maxTrees*100,rW=(f.trees-f.measured)/maxTrees*100;const val=f.trees===0?(f.ptrees>0?`<span class="fb-empty">植樹前・予定 ${fmtT(f.ptrees)}本</span>`:`<span class="fb-empty">植樹前</span>`):`<b>${fmtT(f.trees)}</b><small> 本</small><br><small>測定 ${fmtT(f.measured)}（${Math.round(f.measured/f.trees*100)}%）</small>`;
       return `<div class="fb-row"><div class="fb-name" title="${esc(f.name)}">${esc(f.name)}</div><div class="fb-track"><i style="width:${mW}%;background:var(--dfor2)"></i><i style="width:${rW}%;background:#cfe0c4"></i></div><div class="fb-val">${val}</div></div>`;}).join('');}).join('');
   const secs=D.sections.map(s=>{const d=s.done/s.total*100,c=s.collecting/s.total*100,pc=(s.done+s.collecting*0.5)/s.total*100;
     return `<div class="sec-row"><div class="nm">${esc(s.section)}</div><div class="dbar"><i style="width:${d}%;background:var(--dok)"></i><i style="width:${c}%;background:var(--dwarn)"></i></div><div class="pc">${pc.toFixed(0)}% <span class="dmuted">(${s.done}/${s.total})</span></div></div>`;}).join('');
@@ -625,7 +632,7 @@ function viewDash(summaryOnly){
   const types=Object.entries(D.costByType||{}).sort((a,b)=>b[1]-a[1]);
   const totType=types.reduce((a,b)=>a+b[1],0)||1;
   const typeRows=types.length?types.map(([t,v])=>`<div class="sec-row" style="grid-template-columns:80px 1fr 100px"><div class="nm">${esc(t)}</div><div class="dbar"><i style="width:${v/totType*100}%;background:${ctColor[t]||'#9a9384'}"></i></div><div class="pc">¥${v.toLocaleString('ja-JP')}</div></div>`).join(''):'<span class="dmuted">データなし</span>';
-  const ftab=Fa.map(f=>{const todoM=f.trees>0&&f.measured===0;return `<tr><td><span class="dmuted" style="font-size:12px">${esc(f.site)}</span></td><td><strong>${esc(f.name)}</strong>${f.established?`<div class="dmuted" style="font-size:11px">開設 ${f.established}</div>`:''}</td><td class="dmuted" style="font-size:12px">${esc(f.manager||'—')}</td><td class="num">${fmtT(f.area)}</td><td class="num">${fmtT(f.trees)}</td><td class="num">${f.measured?fmtT(f.measured):'<span class="dmuted">0</span>'}</td><td class="dmuted">${f.latest||(todoM?'<span style="color:var(--dwarn)">測定待ち</span>':(f.trees===0?'植樹前':'—'))}</td><td class="num">${f.co2?f.co2.toFixed(3)+' t':'—'}</td><td class="num">${f.cost?'¥'+Number(f.cost).toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${f.done/f.evtotal*100}%;background:var(--dok)"></i><i style="width:${f.collecting/f.evtotal*100}%;background:var(--dwarn)"></i></div><span class="dmuted" style="font-size:12px">${f.pct.toFixed(1)}%</span></div></td></tr>`;}).join('');
+  const ftab=Fa.map(f=>{const todoM=f.trees>0&&f.measured===0;return `<tr><td><span class="dmuted" style="font-size:12px">${esc(f.site)}</span></td><td><strong>${esc(f.name)}</strong>${f.established?`<div class="dmuted" style="font-size:11px">開設 ${f.established}</div>`:''}</td><td class="dmuted" style="font-size:12px">${esc(f.manager||'—')}</td><td class="num">${fmtT(f.area)}</td><td class="num">${f.trees===0&&f.ptrees>0?'<span class="dmuted">予定 '+fmtT(f.ptrees)+'</span>':fmtT(f.trees)}</td><td class="num">${f.measured?fmtT(f.measured):'<span class="dmuted">0</span>'}</td><td class="dmuted">${f.latest||(todoM?'<span style="color:var(--dwarn)">測定待ち</span>':(f.trees===0?(f.ptrees>0?'植樹前（予定'+fmtT(f.ptrees)+'本）':'植樹前'):'—'))}</td><td class="num">${f.co2?f.co2.toFixed(3)+' t':'—'}</td><td class="num">${f.cost?'¥'+Number(f.cost).toLocaleString('ja-JP'):'—'}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="dbar"><i style="width:${f.done/f.evtotal*100}%;background:var(--dok)"></i><i style="width:${f.collecting/f.evtotal*100}%;background:var(--dwarn)"></i></div><span class="dmuted" style="font-size:12px">${f.pct.toFixed(1)}%</span></div></td></tr>`;}).join('');
   return `<div class="dashx">
    <div class="dhead"><h2>全国圃場 ダッシュボード</h2><span class="en">Japaulownia</span><button class="upd" id="dashRefresh">更新</button></div>
    <div class="dsub">Supabase ライブ集計 ・ 取得 <b>${at}</b> ・ 同一ログインで統合</div>
