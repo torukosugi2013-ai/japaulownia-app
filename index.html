@@ -478,6 +478,7 @@ function drawerContent(t){
   return `<button class="x" id="dx">×</button>
    <div class="dtag">${esc(t.label||t.id)}</div>
    <div class="dpos">${t.pos_ew!=null?`格子位置 EW ${t.pos_ew} · NS ${t.pos_ns}`:'座標配置'}${t.planted_date?` · 植栽 ${esc(t.planted_date)}`:''}</div>
+   ${t.tree_code?`<div class="depc">Tree ID <b>${esc(t.tree_code)}</b></div>`:''}
    ${t.epc?`<div class="depc">EPC ${esc(t.epc)}</div>`:''}
    ${ms.length?`<div class="sub">CO₂の推移</div><div class="spark">${sparkChart(ms)}</div>`:''}
    <div class="sub">計測履歴</div>
