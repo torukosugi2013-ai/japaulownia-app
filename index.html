@@ -220,11 +220,11 @@ function render(){
   root.innerHTML=`<div class="wrap">
     <header><div class="brand"><div class="logo">${LEAF}</div><div><h1 class="mincho">ジャパロニア 圃場ビューア</h1><div class="sub">Cloud · Map · Growth</div></div></div>
       <div style="display:flex;align-items:center;gap:10px"><span class="mono" style="font-size:11px;color:var(--muted)">${esc(S.session.user.email||'')}</span><button class="act gh sm" id="logout">ログアウト</button></div></header>
-    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc17 を表示中 ✅</div>
+    <div style="background:#1f6f43;color:#fff;text-align:center;font-weight:700;font-size:13px;padding:6px;border-radius:8px;margin:6px 0;letter-spacing:.04em">最新版 0621-cc19 を表示中 ✅</div>
     ${S.tab==='jp'?'':`<div class="sitebar" style="align-items:center;gap:10px"><span style="font-size:13px;color:var(--muted)">拠点</span><select id="siteSelect" style="font-size:14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;min-width:240px;background:var(--paper)">${siteSelOpts||'<option>拠点なし</option>'}</select><span style="font-size:12px;color:var(--muted)">圃場は地区マップ上でクリックして選択</span></div>`}
     <div class="tabs"><button class="${S.tab==='jp'?'on':''}" data-tab="jp">全国マップ・概況</button><button class="${S.tab==='district'?'on':''}" data-tab="district">地区マップ</button><button class="${S.tab==='map'?'on':''}" data-tab="map">圃場マップ</button><button class="${S.tab==='entry'?'on':''}" data-tab="entry">計測入力</button><button class="${S.tab==='cam'?'on':''}" data-tab="cam">カメラ計測</button><button class="${S.tab==='photos'?'on':''}" data-tab="photos">写真取込</button><button class="${S.tab==='work'?'on':''}" data-tab="work">作業・費用</button><button class="${S.tab==='budget'?'on':''}" data-tab="budget">予算</button><button class="${S.tab==='credit'?'on':''}" data-tab="credit">カーボンクレジット</button></div>
     ${content}
-    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc17（全国マップ：市区町村ごとに1フラグへ集約・圃場数＋本数表示／カメラHEIC対応）</span></footer>
+    <footer>ジャパロニア 植林CO₂管理 ・ 算定：中根(2008) 相対成長式 ・ データはSupabaseに保存 ・ <span class="mono" style="color:var(--gold)">版 0621-cc19（全国マップ：市区町村ごとに1フラグへ集約・圃場数＋本数表示／カメラHEIC対応）</span></footer>
   </div>
   <div class="scrim" id="scrim"></div><div class="drawer" id="drawer"></div><div class="lightbox" id="lb"><img><div class="lbcap" id="lbcap"></div></div>`;
   el('logout').onclick=async()=>{await sb.auth.signOut();S.site=null;S.field=null;};
@@ -476,9 +476,9 @@ function drawerContent(t){
   const ms=treeMeas(t.id);
   const rows=ms.map(m=>{const c=co2(m);return `<tr><td>${m.measured_on}</td><td>${fmt(m.height_m,2)}</td><td>${fmt(m.dbh_cm,1)}</td><td>${fmt(m.root_d_cm,1)}</td><td class="co2">${c?fmt(c.kg,2):'–'}</td></tr>`;}).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted)">計測記録なし</td></tr>';
   return `<button class="x" id="dx">×</button>
-   <div class="dtag">${esc(t.label||t.id)}</div>
+   <div class="dtag">No.${esc(t.label||t.id)}</div>
+   ${t.tree_code?`<div class="depc" style="font-size:12.5px;color:var(--forest);border-color:var(--leaf)">Tree ID：<b>${esc(t.tree_code)}</b></div>`:'<div class="depc" style="color:#b00">Tree ID 未設定</div>'}
    <div class="dpos">${t.pos_ew!=null?`格子位置 EW ${t.pos_ew} · NS ${t.pos_ns}`:'座標配置'}${t.planted_date?` · 植栽 ${esc(t.planted_date)}`:''}</div>
-   ${t.tree_code?`<div class="depc">Tree ID <b>${esc(t.tree_code)}</b></div>`:''}
    ${t.epc?`<div class="depc">EPC ${esc(t.epc)}</div>`:''}
    ${ms.length?`<div class="sub">CO₂の推移</div><div class="spark">${sparkChart(ms)}</div>`:''}
    <div class="sub">計測履歴</div>
