@@ -1429,16 +1429,20 @@ function initMapZoom(){
     const vb=(svg.getAttribute('viewBox')||'').split(/\s+/).map(Number);if(vb.length!==4)return;
     const ox=vb[0],oy=vb[1],ow=vb[2],oh=vb[3];let x=ox,y=oy,w=ow,h=oh;
     const apply=()=>svg.setAttribute('viewBox',`${x} ${y} ${w} ${h}`);
-    const clamp=()=>{const minW=ow*0.06;if(w>ow){w=ow;}if(w<minW){w=minW;}h=w*oh/ow;if(x<ox)x=ox;if(y<oy)y=oy;if(x+w>ox+ow)x=ox+ow-w;if(y+h>oy+oh)y=oy+oh-h;};
+    const clamp=()=>{const minW=ow*0.04;if(w>ow){w=ow;}if(w<minW){w=minW;}h=w*oh/ow;if(x<ox)x=ox;if(y<oy)y=oy;if(x+w>ox+ow)x=ox+ow-w;if(y+h>oy+oh)y=oy+oh-h;};
+    const zoomAt=(cx,cy,f)=>{let nw=w*f;nw=Math.min(ow,Math.max(ow*0.04,nw));x=cx-(cx-x)*(nw/w);y=cy-(cy-y)*(nw/w);w=nw;clamp();apply();};
+    const cxy=ev=>{const r=svg.getBoundingClientRect();return [x+(ev.clientX-r.left)/r.width*w, y+(ev.clientY-r.top)/r.height*h];};
+    const reset=()=>{x=ox;y=oy;w=ow;h=oh;apply();};
     svg.style.touchAction='none';svg.style.cursor='grab';
-    svg.addEventListener('wheel',ev=>{ev.preventDefault();const r=svg.getBoundingClientRect();const px=x+(ev.clientX-r.left)/r.width*w;const py=y+(ev.clientY-r.top)/r.height*h;const f=ev.deltaY<0?0.82:1.22;let nw=w*f;nw=Math.min(ow,Math.max(ow*0.06,nw));x=px-(px-x)*(nw/w);y=py-(py-y)*(nw/w);w=nw;clamp();apply();},{passive:false});
-    let drag=false,moved=false,sx=0,sy=0,bx=0,by=0;
-    svg.addEventListener('pointerdown',ev=>{drag=true;moved=false;sx=ev.clientX;sy=ev.clientY;bx=x;by=y;svg.style.cursor='grabbing';});
-    svg.addEventListener('pointermove',ev=>{if(!drag)return;const r=svg.getBoundingClientRect();if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)>4)moved=true;x=bx-(ev.clientX-sx)/r.width*w;y=by-(ev.clientY-sy)/r.height*h;clamp();apply();});
-    const end=()=>{drag=false;svg.style.cursor='grab';if(moved){svg._supclick=true;setTimeout(()=>{svg._supclick=false;},60);}};
-    svg.addEventListener('pointerup',end);svg.addEventListener('pointerleave',end);
+    svg.addEventListener('wheel',ev=>{ev.preventDefault();const [px,py]=cxy(ev);zoomAt(px,py,ev.deltaY<0?0.82:1.22);},{passive:false});
+    const pts=new Map();let moved=false,bx=0,by=0,sx=0,sy=0,pd=0;
+    svg.addEventListener('pointerdown',ev=>{pts.set(ev.pointerId,ev);try{svg.setPointerCapture(ev.pointerId);}catch(_){}moved=false;if(pts.size===1){sx=ev.clientX;sy=ev.clientY;bx=x;by=y;svg.style.cursor='grabbing';}else if(pts.size===2){const a=[...pts.values()];pd=Math.hypot(a[0].clientX-a[1].clientX,a[0].clientY-a[1].clientY);}});
+    svg.addEventListener('pointermove',ev=>{if(!pts.has(ev.pointerId))return;pts.set(ev.pointerId,ev);const r=svg.getBoundingClientRect();if(pts.size>=2){const a=[...pts.values()];const nd=Math.hypot(a[0].clientX-a[1].clientX,a[0].clientY-a[1].clientY);if(pd>0){const mx=(a[0].clientX+a[1].clientX)/2,my=(a[0].clientY+a[1].clientY)/2;const px=x+(mx-r.left)/r.width*w,py=y+(my-r.top)/r.height*h;zoomAt(px,py,pd/nd);}pd=nd;moved=true;}else{if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)>4)moved=true;x=bx-(ev.clientX-sx)/r.width*w;y=by-(ev.clientY-sy)/r.height*h;clamp();apply();}});
+    const end=ev=>{pts.delete(ev.pointerId);if(pts.size<2)pd=0;if(pts.size===0){svg.style.cursor='grab';if(moved){svg._supclick=true;setTimeout(()=>{svg._supclick=false;},60);}}};
+    svg.addEventListener('pointerup',end);svg.addEventListener('pointercancel',end);svg.addEventListener('pointerleave',end);
     svg.addEventListener('click',ev=>{if(svg._supclick){ev.stopPropagation();ev.preventDefault();}},true);
-    svg.addEventListener('dblclick',ev=>{ev.preventDefault();x=ox;y=oy;w=ow;h=oh;apply();});
+    svg.addEventListener('dblclick',ev=>{ev.preventDefault();const [px,py]=cxy(ev);zoomAt(px,py,0.5);});
+    const area=svg.closest('.maparea');if(area&&!area.querySelector('.zoomctl')){area.style.position='relative';const box=document.createElement('div');box.className='zoomctl';box.style.cssText='position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5';const mk=(t,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.style.cssText='width:38px;height:38px;border:1px solid var(--line,#ccc);background:#fff;border-radius:9px;font-size:20px;font-weight:700;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.15);line-height:1;color:#333';b.onclick=e=>{e.stopPropagation();fn();};return b;};box.appendChild(mk('＋',()=>zoomAt(x+w/2,y+h/2,0.6)));box.appendChild(mk('－',()=>zoomAt(x+w/2,y+h/2,1.6)));box.appendChild(mk('⟲',reset));area.appendChild(box);}
   });
 }
 function bind(){
